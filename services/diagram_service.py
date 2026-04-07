@@ -1,10 +1,17 @@
 """
 Diagram service — MEX Safety Agent
-Generates a programmatic SVG safety circuit block diagram with redline markup.
+Generates a programmatic SVG safety circuit diagram with redline markup.
 No Claude API call — layout and annotations are built deterministically.
 
-Phase 1: block diagram style with IEC-style column layout.
-Phase 2 (deferred): replace _draw_component_box() with proper IEC 60617 symbols.
+SLD mode (Phase 2): used when parse_result contains connection topology data.
+  - Power rails (+24VDC / 0VDC)
+  - Series wires between safety inputs (left column)
+  - Bus-and-stub inter-column wiring with terminal labels from connection data
+  - Dashed amber feedback/monitoring paths
+  - Column labels: SAFETY INPUTS | SAFETY RELAY / PLC | OUTPUT CONTACTS
+
+Block diagram mode (fallback): used when no connection data is available.
+  - 3-column layout, simple midpoint arrows between columns
 """
 
 import io
@@ -45,6 +52,16 @@ COLUMN_LABELS = [
     "E-STOP INPUTS",
     "SAFETY RELAY / RESET",
     "OUTPUTS / PLC / CONTACTORS",
+]
+
+# ── SLD-specific constants ─────────────────────────────────────────────────────
+SLD_RAIL_H  = 11    # height of power rail stripe
+SLD_BUS_OFS = 13    # horizontal offset from col right edge to inter-col bus line
+
+SLD_COL_LABELS = [
+    "SAFETY INPUTS",
+    "SAFETY RELAY / PLC",
+    "OUTPUT CONTACTS",
 ]
 
 # Maps ParsedComponent.type -> column index (None = skip / don't render)
@@ -443,12 +460,26 @@ def _draw_col_header(col_idx: int, y: int) -> str:
     )
 
 
+# ── SLD-specific drawing helpers ──────────────────────────────────────────────
+
+def _draw_power_rail(y: int, label: str) -> str:
+    """Horizontal power rail stripe (+24VDC / 0VDC) with label."""
+    mid_y = y + SLD_RAIL_H // 2
+    return (
+        f'<rect x="0" y="{y}" width="{SVG_W}" height="{SLD_RAIL_H}" '
+        f'fill="{C_NAVY2}" opacity="0.15"/>'
+        f'<line x1="38" y1="{mid_y}" x2="{SVG_W - 4}" y2="{mid_y}" '
+        f'stroke="{C_NAVY}" stroke-width="2"/>'
+        f'<text x="3" y="{y + SLD_RAIL_H - 2}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="6.5" font-weight="bold" fill="{C_NAVY2}">{_xe(label)}</text>'
+    )
+
+
 # ── Main SVG builder ───────────────────────────────────────────────────────────
 
-def build_diagram_svg(parse_result, review_result) -> str:
+def _build_block_svg(parse_result, review_result) -> str:
     """
-    Build a complete SVG block diagram string from parse + review data.
-    Returns a valid SVG string ready for embedding in PDF.
+    Fallback 3-column block diagram. Used when no connection topology is available.
     """
     # Gather data
     components = list(_g(parse_result, "components", []))
@@ -590,6 +621,288 @@ def build_diagram_svg(parse_result, review_result) -> str:
     parts.append('</svg>')
 
     return "\n".join(parts)
+
+
+# ── SLD builder ───────────────────────────────────────────────────────────────
+
+def _build_sld_svg(parse_result, review_result) -> str:
+    """
+    SLD-style diagram using Phase 1 connection topology.
+    Renders power rails, series input chains, bus-routed inter-column wires,
+    and dashed feedback paths.
+    """
+    components  = list(_g(parse_result, "components",  []))
+    connections = list(_g(parse_result, "connections", []))
+    changes     = list(_g(review_result, "changes",    []))
+
+    change_by_id = {_g(ch, "id", i): ch for i, ch in enumerate(changes)}
+    renderable   = [c for c in components
+                    if _type_to_col(_g(c, "type", "unknown")) is not None]
+    change_map   = _map_changes_to_components(renderable, changes)
+
+    cols: list[list] = [[], [], []]
+    for comp in renderable:
+        col = _type_to_col(_g(comp, "type", "unknown"))
+        if col is not None:
+            cols[col].append(comp)
+
+    # SLD reserves SLD_RAIL_H above and below the component area
+    sld_comp_y0 = TITLE_H + SLD_RAIL_H + 4 + COL_HDR_H + 4
+
+    max_rows    = max((len(c) for c in cols), default=1)
+    available_h = MAX_H - sld_comp_y0 - SLD_RAIL_H - LEGEND_H - 20
+    dyn_row_h   = max(22, available_h // max(max_rows, 1))
+    dyn_box_h   = max(18, dyn_row_h - 4)
+    dyn_box_gap = dyn_row_h - dyn_box_h
+
+    content_h = max_rows * dyn_row_h + 4
+    svg_h = min(MAX_H, max(MIN_H,
+        sld_comp_y0 + content_h + SLD_RAIL_H + LEGEND_H + 20))
+
+    # y used for feedback routing — just below the last component row
+    feedback_y = min(
+        sld_comp_y0 + max_rows * dyn_row_h + 6,
+        svg_h - LEGEND_H - SLD_RAIL_H - 10
+    )
+
+    # Component position index {comp_id: (col_x, y_top, box_h)}
+    comp_pos: dict[str, tuple] = {}
+    for ci, col_comps in enumerate(cols):
+        cy = sld_comp_y0
+        for comp in col_comps:
+            cid = str(_g(comp, "id", "")).strip()
+            if cid:
+                comp_pos[cid] = (COL_X[ci], cy, dyn_box_h)
+            cy += dyn_row_h
+
+    # Partition connections
+    safety_conns   = [c for c in connections
+                      if _g(c, "wire_type", "control") in ("safety", "control")]
+    feedback_conns = [c for c in connections
+                      if _g(c, "wire_type", "") == "feedback"]
+
+    parts = []
+
+    # SVG root
+    parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {SVG_W} {svg_h}" width="{SVG_W}" height="{svg_h}">'
+    )
+    parts.append(f'<rect width="{SVG_W}" height="{svg_h}" fill="{C_WHITE}"/>')
+
+    # Title bar
+    parts.append(f'<rect x="0" y="0" width="{SVG_W}" height="{TITLE_H}" fill="{C_NAVY}"/>')
+    parts.append(f'<rect x="0" y="{TITLE_H - 4}" width="{SVG_W}" height="4" fill="{C_LIME}"/>')
+    parts.append(
+        f'<text x="10" y="22" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="11" font-weight="bold" fill="{C_WHITE}">'
+        f'Safety Circuit Schematic \u2014 Redline Review</text>'
+    )
+    parts.append(
+        f'<text x="10" y="38" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="7.5" fill="#AEB6BF">MEX Engineering Group \u00b7 '
+        f'Redline annotations correspond to numbered change items in the review report</text>'
+    )
+
+    # Top power rail
+    parts.append(_draw_power_rail(TITLE_H + 2, "+24VDC"))
+
+    # Column headers (SLD labels)
+    hdr_y = TITLE_H + SLD_RAIL_H + 4
+    for ci, lbl in enumerate(SLD_COL_LABELS):
+        parts.append(
+            f'<rect x="{COL_X[ci]}" y="{hdr_y}" width="{BOX_W}" height="{COL_HDR_H - 4}" '
+            f'rx="3" fill="{C_NAVY}"/>'
+            f'<text x="{COL_X[ci] + BOX_W // 2}" y="{hdr_y + 12}" '
+            f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" '
+            f'font-weight="bold" fill="{C_WHITE}" text-anchor="middle">{_xe(lbl)}</text>'
+        )
+
+    # ── Series wires within input column (inputs are always in series) ─────────
+    if len(cols[0]) > 1:
+        cx_ctr = COL_X[0] + BOX_W // 2
+        cy = sld_comp_y0
+        for _ in range(len(cols[0]) - 1):
+            y_bot = cy + dyn_box_h
+            y_nxt = cy + dyn_row_h
+            parts.append(
+                f'<line x1="{cx_ctr}" y1="{y_bot}" x2="{cx_ctr}" y2="{y_nxt}" '
+                f'stroke="{C_NAVY}" stroke-width="1.3"/>'
+            )
+            # Node dot at midpoint of gap
+            y_mid = (y_bot + y_nxt) // 2
+            parts.append(f'<circle cx="{cx_ctr}" cy="{y_mid}" r="1.5" fill="{C_NAVY}"/>')
+            cy += dyn_row_h
+
+    # ── Inter-column bus wires ─────────────────────────────────────────────────
+    for from_col, to_col in [(0, 1), (1, 2)]:
+        bus_x = COL_X[from_col] + BOX_W + SLD_BUS_OFS
+
+        lane_conns = [
+            c for c in safety_conns
+            if (_g(c, "from_id", "") in comp_pos
+                and _g(c, "to_id", "") in comp_pos
+                and comp_pos[_g(c, "from_id", "")][0] == COL_X[from_col]
+                and comp_pos[_g(c, "to_id",   "")][0] == COL_X[to_col])
+        ]
+
+        if lane_conns:
+            src_ys = [comp_pos[_g(c, "from_id", "")][1] + dyn_box_h // 2
+                      for c in lane_conns]
+            bus_y1 = min(src_ys) - 2
+            bus_y2 = max(src_ys) + 2
+
+            # Vertical bus line
+            parts.append(
+                f'<line x1="{bus_x}" y1="{bus_y1}" x2="{bus_x}" y2="{bus_y2}" '
+                f'stroke="{C_NAVY}" stroke-width="1.8"/>'
+            )
+
+            # Stubs: source right edge → bus
+            seen_src: set = set()
+            for conn in lane_conns:
+                fid = _g(conn, "from_id", "")
+                fp  = str(_g(conn, "from_port", "") or "")
+                if fid in comp_pos and fid not in seen_src:
+                    fy  = comp_pos[fid][1] + dyn_box_h // 2
+                    sx  = COL_X[from_col] + BOX_W
+                    parts.append(
+                        f'<line x1="{sx}" y1="{fy}" x2="{bus_x}" y2="{fy}" '
+                        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+                    )
+                    if fp:
+                        parts.append(
+                            f'<text x="{sx + 2}" y="{fy - 2}" '
+                            f'font-family="Helvetica,Arial,sans-serif" font-size="5.5" '
+                            f'fill="{C_GREY}">{_xe(fp)}</text>'
+                        )
+                    seen_src.add(fid)
+
+            # Wires: bus → target left edge with arrowhead
+            seen_tgt: set = set()
+            for conn in lane_conns:
+                tid = _g(conn, "to_id",   "")
+                tp  = str(_g(conn, "to_port", "") or "")
+                if tid in comp_pos and tid not in seen_tgt:
+                    ty  = comp_pos[tid][1] + dyn_box_h // 2
+                    tx  = COL_X[to_col]
+                    parts.append(
+                        f'<line x1="{bus_x}" y1="{ty}" x2="{tx}" y2="{ty}" '
+                        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+                    )
+                    parts.append(
+                        f'<polygon points="{tx},{ty} {tx-7},{ty-3} {tx-7},{ty+3}" '
+                        f'fill="{C_NAVY2}"/>'
+                    )
+                    if tp:
+                        parts.append(
+                            f'<text x="{bus_x + 2}" y="{ty - 2}" '
+                            f'font-family="Helvetica,Arial,sans-serif" font-size="5.5" '
+                            f'fill="{C_GREY}">{_xe(tp)}</text>'
+                        )
+                    seen_tgt.add(tid)
+        else:
+            # Fallback: single midpoint arrow
+            arrow_y = (sld_comp_y0 + (len(cols[from_col]) * dyn_row_h) // 2 + dyn_box_h // 2
+                       if cols[from_col] else sld_comp_y0 + dyn_box_h // 2)
+            parts.append(_draw_connection_arrow(
+                COL_X[from_col] + BOX_W + 4, arrow_y,
+                COL_X[to_col]   - 4,         arrow_y,
+            ))
+
+    # ── Feedback connections (dashed amber, routed below components) ───────────
+    for conn in feedback_conns:
+        fid = _g(conn, "from_id", "")
+        tid = _g(conn, "to_id",   "")
+        if fid in comp_pos and tid in comp_pos:
+            fx, fy, fh = comp_pos[fid]
+            tx, ty, th = comp_pos[tid]
+            src_cx = fx + BOX_W // 2
+            tgt_cx = tx + BOX_W // 2
+            parts.append(
+                f'<polyline points="'
+                f'{src_cx},{fy + fh} {src_cx},{feedback_y} '
+                f'{tgt_cx},{feedback_y} {tgt_cx},{ty + th}" '
+                f'fill="none" stroke="{C_AMBER}" stroke-width="1.1" '
+                f'stroke-dasharray="4,3" opacity="0.9"/>'
+            )
+            # Upward arrowhead into target bottom
+            ay = ty + th
+            parts.append(
+                f'<polygon points="{tgt_cx},{ay} {tgt_cx-3},{ay+7} {tgt_cx+3},{ay+7}" '
+                f'fill="{C_AMBER}" opacity="0.9"/>'
+            )
+
+    # ── Components (drawn on top of wires) ─────────────────────────────────────
+    for ci, col_comps in enumerate(cols):
+        cy = sld_comp_y0
+        for comp in col_comps:
+            cid    = str(_g(comp, "id", "")).strip()
+            ch_ids = change_map.get(cid, [])
+            parts.append(_draw_component_box(comp, COL_X[ci], cy, ch_ids, change_by_id,
+                                             box_h=dyn_box_h))
+            cy += dyn_row_h
+
+    # Bottom power rail
+    bot_rail_y = svg_h - LEGEND_H - SLD_RAIL_H - 4
+    parts.append(_draw_power_rail(bot_rail_y, "0VDC"))
+
+    # Legend
+    leg_y = svg_h - LEGEND_H + 4
+    parts.append(
+        f'<rect x="0" y="{leg_y - 4}" width="{SVG_W}" height="{LEGEND_H}" fill="{C_LGREY}"/>'
+    )
+    lx = 8
+    parts.append(
+        f'<rect x="{lx}" y="{leg_y + 4}" width="28" height="16" rx="3" '
+        f'fill="{C_LGREY}" stroke="{C_NAVY}" stroke-width="1"/>'
+    )
+    parts.append(
+        f'<text x="{lx + 32}" y="{leg_y + 16}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
+        f'No findings</text>'
+    )
+    lx2 = 130
+    parts.append(
+        f'<rect x="{lx2}" y="{leg_y + 4}" width="28" height="16" rx="3" '
+        f'fill="#FFF5F5" stroke="{C_RED}" stroke-width="1.5" stroke-dasharray="5,3"/>'
+    )
+    parts.append(
+        f'<circle cx="{lx2 + 28}" cy="{leg_y + 4}" r="{BADGE_R}" '
+        f'fill="{C_RED}" stroke="{C_WHITE}" stroke-width="1"/>'
+    )
+    parts.append(
+        f'<text x="{lx2 + 28}" y="{leg_y + 8}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="7" font-weight="bold" '
+        f'fill="{C_WHITE}" text-anchor="middle">N</text>'
+    )
+    parts.append(
+        f'<text x="{lx2 + 42}" y="{leg_y + 16}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
+        f'Redline (N = change no.)</text>'
+    )
+    lx3 = 320
+    for lbl, col in [("CRITICAL", C_RED), ("MAJOR", C_AMBER), ("MINOR", "#2471A3")]:
+        parts.append(f'<circle cx="{lx3}" cy="{leg_y + 12}" r="7" fill="{col}"/>')
+        parts.append(
+            f'<text x="{lx3 + 10}" y="{leg_y + 16}" '
+            f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
+            f'{lbl}</text>'
+        )
+        lx3 += 58
+
+    parts.append('</svg>')
+    return "\n".join(parts)
+
+
+def build_diagram_svg(parse_result, review_result) -> str:
+    """Route to SLD layout when connection topology is available, else block diagram."""
+    connections = list(_g(parse_result, "connections", []))
+    if connections:
+        logger.info("Diagram: SLD mode (%d connections)", len(connections))
+        return _build_sld_svg(parse_result, review_result)
+    logger.info("Diagram: block mode (no connections)")
+    return _build_block_svg(parse_result, review_result)
 
 
 # ── Public API (called from export_service) ────────────────────────────────────
