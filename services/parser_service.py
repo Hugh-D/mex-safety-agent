@@ -15,14 +15,25 @@ logger = logging.getLogger(__name__)
 PARSER_SYSTEM_PROMPT = """You are an expert electrical engineer specialising in machine safety systems \
 compliant with AS4024, ISO 13849-1, and IEC 62061. You analyse electrical drawings — \
 single line diagrams, safety circuit schematics, and control system layouts — to identify \
-and catalogue all components relevant to a safety review.
+all safety-relevant components AND trace the wiring connections between them.
 
 Identify ALL components present, categorised as:
-- estop      : E-stops, light curtains, safety mats, safety switches, interlock guards
-- safety_plc : Safety PLCs, safety relays, safety controllers
-- contactor  : Contactors, motor starters, output switching devices, safety outputs
-- vfd        : Variable frequency drives, soft starters, motor drives
-- terminal   : Wire labels, terminal numbers, cable IDs, circuit references
+- estop         : E-stop pushbuttons (mushroom head)
+- safety_switch : Interlocked guard switches, limit switches, safety door switches
+- light_curtain : Light curtains, AOPDs, ESPEs
+- scanner       : Laser area scanners, safety laser scanners
+- safety_relay  : Dedicated safety relay modules (e.g. Pilz PNOZ, SICK i10, Schmersal SRB)
+- safety_plc    : Safety PLCs, safety controllers, safety I/O (e.g. Pilz PSS, Siemens F-CPU)
+- contactor     : Contactors, motor starters, output switching devices, safety output contacts
+- vfd           : Variable frequency drives, soft starters, servo drives
+- terminal      : Wire labels, terminal blocks, cable IDs, circuit references
+
+ALSO trace the wiring between components. For each connection in the safety circuit, record which \
+output terminal of one component connects to which input terminal of the next. Focus on:
+- The main safety chain (E-stop/guard → safety relay/PLC → output contacts)
+- Feedback/monitoring loops (output contact feedback back to safety relay)
+- Reset signal paths
+- Cross-monitoring between redundant channels
 
 Return ONLY valid JSON in exactly this structure — no preamble, no markdown fences:
 {
@@ -33,7 +44,7 @@ Return ONLY valid JSON in exactly this structure — no preamble, no markdown fe
     {
       "id": "<ref from drawing e.g. K1, ES1, X1>",
       "label": "<human readable name>",
-      "type": "<estop|safety_plc|contactor|vfd|terminal>",
+      "type": "<estop|safety_switch|light_curtain|scanner|safety_relay|safety_plc|contactor|vfd|terminal>",
       "manufacturer": "<if identifiable, else null>",
       "model": "<if identifiable, else null>",
       "pl_rating": "<PLa-PLe or null>",
@@ -41,9 +52,22 @@ Return ONLY valid JSON in exactly this structure — no preamble, no markdown fe
       "notes": "<wiring config, NC/NO contacts, channel count, concerns>"
     }
   ],
+  "connections": [
+    {
+      "from_id": "<source component ID>",
+      "from_port": "<terminal/pin label on source e.g. '13', 'Q1', 'OUT' — null if not shown>",
+      "to_id": "<destination component ID>",
+      "to_port": "<terminal/pin label on destination e.g. '14', 'I1', 'A1' — null if not shown>",
+      "wire_type": "<safety|power|control|feedback>",
+      "label": "<wire number or cable label from drawing — null if not shown>"
+    }
+  ],
   "wiring_observations": ["<observation 1>", "..."],
   "safety_concerns": ["<concern 1>", "..."]
-}"""
+}
+
+wire_type guide: 'safety' = main safety chain; 'feedback' = contact feedback/monitoring loops; \
+'power' = supply/24VDC; 'control' = reset/enable/mute signals."""
 
 
 def _to_sentences(text: str) -> list:
@@ -207,9 +231,12 @@ async def parse_drawing(pdf_bytes: bytes) -> dict:
     result = json.loads(cleaned)
     result.setdefault("wiring_observations", [])
     result.setdefault("safety_concerns", [])
+    result.setdefault("connections", [])
     result.setdefault("page_count", 1)
     # Normalise summary to list — split prose into sentences if Claude ignores array instruction
     if isinstance(result.get("summary"), str):
         result["summary"] = _to_sentences(result["summary"])
     result["components"] = [enrich_component(c) for c in result.get("components", [])]
+    logger.info("Parse complete: %d components, %d connections",
+                len(result["components"]), len(result["connections"]))
     return result

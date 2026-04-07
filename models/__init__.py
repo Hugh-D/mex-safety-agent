@@ -88,12 +88,16 @@ class ProjectInput(BaseModel):
 # ── Parser output ──────────────────────────────────────────────────────────────
 
 class ComponentType(str, Enum):
-    estop      = "estop"
-    safety_plc = "safety_plc"
-    contactor  = "contactor"
-    vfd        = "vfd"
-    terminal   = "terminal"
-    unknown    = "unknown"
+    estop         = "estop"
+    safety_switch = "safety_switch"   # interlocked guard switch, limit switch actuator
+    light_curtain = "light_curtain"   # ESPE, AOPDs
+    scanner       = "scanner"         # laser area scanner
+    safety_relay  = "safety_relay"    # dedicated safety relay module (e.g. Pilz PNOZ, SICK i10)
+    safety_plc    = "safety_plc"      # safety PLC / safety controller (e.g. Pilz PSS, B&R SafeIO)
+    contactor     = "contactor"       # contactors, motor starters, safety output contacts
+    vfd           = "vfd"             # VFDs, soft starters, servo drives
+    terminal      = "terminal"        # wire labels, terminal blocks, cable refs
+    unknown       = "unknown"
 
 
 class ParsedComponent(BaseModel):
@@ -107,11 +111,22 @@ class ParsedComponent(BaseModel):
     notes:        Optional[str] = None
 
 
+class Connection(BaseModel):
+    """A directed connection between two components in the safety circuit."""
+    from_id:   str
+    to_id:     str
+    from_port: Optional[str] = None   # terminal/pin label on the source (e.g. "Q1", "13")
+    to_port:   Optional[str] = None   # terminal/pin label on the destination (e.g. "I1", "A1")
+    wire_type: str = "control"        # "safety" | "power" | "control" | "feedback"
+    label:     Optional[str] = None   # wire number or cable label from drawing
+
+
 class ParseResult(BaseModel):
     drawing_type:         str
     page_count:           int
     summary:              List[str]
     components:           List[ParsedComponent]
+    connections:          List[Connection] = Field(default_factory=list)
     wiring_observations:  List[str]
     safety_concerns:      List[str]
     raw_text_extracted:   Optional[str] = None
