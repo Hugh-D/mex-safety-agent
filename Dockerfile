@@ -9,6 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     libxml2-dev \
     libxslt-dev \
+    pkg-config \
+    libcairo2-dev \
+    meson \
+    ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip then install dependencies
