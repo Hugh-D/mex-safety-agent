@@ -9,11 +9,8 @@ __pycache__/
 venv*/
 *.egg-info/
 
-# Database (local only — on Railway use a persistent volume)
+# Database (local only — rebuilt on deploy)
 data/equipment_library.db
-
-# Seed script output only — DB is rebuilt on deploy
-data/
 
 # Logs
 *.log
