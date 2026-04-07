@@ -432,13 +432,12 @@ def generate_pdf(req: ExportRequest) -> bytes:
 
         drawing = generate_diagram_drawing(parse_result, review)
         if drawing is not None:
-            # Scale to fit page width AND height.
-            # Fresh page: H minus top+bottom margins (30mm), footer (15mm),
-            # and the heading/text above the drawing (~30mm overhead).
-            max_h   = H - 75*mm   # ~222mm safe usable height on a fresh page
-            scale_w = page_w / drawing.width  if drawing.width  > 0 else 1
-            scale_h = max_h  / drawing.height if drawing.height > 0 else 1
-            scale   = min(scale_w, scale_h, 1.0)  # never upscale
+            # Scale to fill page width; constrain by available height if needed.
+            # SVG is vector so upscaling is fine.
+            max_h = H - 75*mm   # ~222mm safe usable height on a fresh page
+            scale = page_w / drawing.width if drawing.width > 0 else 1
+            if drawing.height * scale > max_h:
+                scale = max_h / drawing.height if drawing.height > 0 else 1
             drawing.width  *= scale
             drawing.height *= scale
             drawing.transform = (scale, 0, 0, scale, 0, 0)

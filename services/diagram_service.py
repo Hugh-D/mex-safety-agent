@@ -15,9 +15,9 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 # ── SVG layout constants ───────────────────────────────────────────────────────
-SVG_W      = 800
-COL_X      = [20, 325, 630]      # left edge of boxes for each column
-BOX_W      = 150
+SVG_W      = 500                  # matches A4 usable width (~493pt) so scale ≈ 1
+COL_X      = [10, 185, 360]      # left edge of boxes for each column
+BOX_W      = 130
 BOX_H      = 32
 BOX_GAP    = 10
 COMP_Y0    = 92                   # y of first component row
@@ -139,19 +139,23 @@ SYM_W = 28   # symbol zone width (left side of each box); text starts at x + SYM
 
 
 def _sym_estop(cx: int, cy: int) -> str:
-    """Mushroom-head e-stop: red cap + stem + normally-closed contact."""
+    """Mushroom-head e-stop: IEC 60617 — red cap + stem + NC contact (two bars + diagonal)."""
     return (
         # Mushroom cap (red filled ellipse)
-        f'<ellipse cx="{cx}" cy="{cy - 7}" rx="10" ry="5" '
-        f'fill="{C_RED}" stroke="{C_RED}" stroke-width="1"/>'
+        f'<ellipse cx="{cx}" cy="{cy - 8}" rx="10" ry="5" '
+        f'fill="{C_RED}" stroke="#8B0000" stroke-width="0.8"/>'
         # Stem
-        f'<rect x="{cx - 2}" y="{cy - 3}" width="4" height="6" fill="#555555"/>'
-        # NC contact — horizontal bar
-        f'<line x1="{cx - 8}" y1="{cy + 8}" x2="{cx + 8}" y2="{cy + 8}" '
+        f'<line x1="{cx}" y1="{cy - 3}" x2="{cx}" y2="{cy + 1}" '
+        f'stroke="#555555" stroke-width="2.5"/>'
+        # IEC NC contact: top terminal line
+        f'<line x1="{cx - 7}" y1="{cy + 2}" x2="{cx + 7}" y2="{cy + 2}" '
         f'stroke="{C_NAVY}" stroke-width="1.5"/>'
-        # NC diagonal slash through contact
-        f'<line x1="{cx - 4}" y1="{cy + 4}" x2="{cx + 4}" y2="{cy + 12}" '
+        # IEC NC contact: actuator diagonal (top-left to bottom-right)
+        f'<line x1="{cx - 5}" y1="{cy + 2}" x2="{cx + 5}" y2="{cy + 10}" '
         f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+        # IEC NC contact: bottom terminal line
+        f'<line x1="{cx - 7}" y1="{cy + 10}" x2="{cx + 7}" y2="{cy + 10}" '
+        f'stroke="{C_NAVY}" stroke-width="1.5"/>'
     )
 
 
@@ -219,9 +223,9 @@ def _sym_safety_relay(cx: int, cy: int) -> str:
         f'stroke="{C_NAVY}" stroke-width="1.2"/>'
         f'<line x1="{cx + 10}" y1="{cy - 3}" x2="{cx + 14}" y2="{cy - 3}" '
         f'stroke="{C_NAVY}" stroke-width="1.2"/>'
-        # K label inside coil
+        # S label inside coil (S = Safety relay designation per IEC)
         f'<text x="{cx}" y="{cy - 1}" font-family="Helvetica,Arial,sans-serif" '
-        f'font-size="6.5" font-weight="bold" fill="{C_NAVY}" text-anchor="middle">K</text>'
+        f'font-size="6.5" font-weight="bold" fill="{C_NAVY}" text-anchor="middle">S</text>'
         # Forced-guided contact dots (safety feature indicator)
         f'<circle cx="{cx - 4}" cy="{cy + 6}" r="2.5" fill="{C_NAVY2}"/>'
         f'<circle cx="{cx + 4}" cy="{cy + 6}" r="2.5" fill="{C_NAVY2}"/>'
@@ -497,15 +501,15 @@ def build_diagram_svg(parse_result, review_result) -> str:
         f'<rect x="0" y="{TITLE_H - 4}" width="{SVG_W}" height="4" fill="{C_LIME}"/>'
     )
     parts.append(
-        f'<text x="20" y="22" font-family="Helvetica,Arial,sans-serif" '
-        f'font-size="12" font-weight="bold" fill="{C_WHITE}">'
-        f'Safety Circuit Schematic \u2014 E-Stop / Safety Relay / Outputs (Redline Review)'
+        f'<text x="10" y="22" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="11" font-weight="bold" fill="{C_WHITE}">'
+        f'Safety Circuit Schematic \u2014 Redline Review'
         f'</text>'
     )
     parts.append(
-        f'<text x="20" y="40" font-family="Helvetica,Arial,sans-serif" '
-        f'font-size="8" fill="#AEB6BF">MEX Engineering Group \u00b7 Redline annotations '
-        f'correspond to numbered change items in the review report</text>'
+        f'<text x="10" y="38" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="7.5" fill="#AEB6BF">MEX Engineering Group \u00b7 '
+        f'Redline annotations correspond to numbered change items in the review report</text>'
     )
 
     # Column headers
@@ -534,44 +538,44 @@ def build_diagram_svg(parse_result, review_result) -> str:
                                              box_h=dyn_box_h))
             cy += dyn_box_h + dyn_box_gap
 
-    # Legend
+    # Legend — laid out to fit SVG_W=500
     leg_y = svg_h - LEGEND_H + 4
     parts.append(
         f'<rect x="0" y="{leg_y - 4}" width="{SVG_W}" height="{LEGEND_H}" fill="{C_LGREY}"/>'
     )
     # Normal component sample
-    lx = 20
+    lx = 8
     parts.append(
-        f'<rect x="{lx}" y="{leg_y + 4}" width="30" height="16" rx="3" '
+        f'<rect x="{lx}" y="{leg_y + 4}" width="28" height="16" rx="3" '
         f'fill="{C_LGREY}" stroke="{C_NAVY}" stroke-width="1"/>'
     )
     parts.append(
-        f'<text x="{lx + 35}" y="{leg_y + 16}" '
-        f'font-family="Helvetica,Arial,sans-serif" font-size="8" fill="{C_GREY}">'
-        f'Component (no findings)</text>'
+        f'<text x="{lx + 32}" y="{leg_y + 16}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
+        f'No findings</text>'
     )
     # Redline component sample
-    lx2 = 220
+    lx2 = 130
     parts.append(
-        f'<rect x="{lx2}" y="{leg_y + 4}" width="30" height="16" rx="3" '
+        f'<rect x="{lx2}" y="{leg_y + 4}" width="28" height="16" rx="3" '
         f'fill="#FFF5F5" stroke="{C_RED}" stroke-width="1.5" stroke-dasharray="5,3"/>'
     )
     parts.append(
-        f'<circle cx="{lx2 + 30}" cy="{leg_y + 4}" r="{BADGE_R}" '
+        f'<circle cx="{lx2 + 28}" cy="{leg_y + 4}" r="{BADGE_R}" '
         f'fill="{C_RED}" stroke="{C_WHITE}" stroke-width="1"/>'
     )
     parts.append(
-        f'<text x="{lx2 + 30}" y="{leg_y + 8}" '
+        f'<text x="{lx2 + 28}" y="{leg_y + 8}" '
         f'font-family="Helvetica,Arial,sans-serif" font-size="7" font-weight="bold" '
         f'fill="{C_WHITE}" text-anchor="middle">N</text>'
     )
     parts.append(
-        f'<text x="{lx2 + 45}" y="{leg_y + 16}" '
-        f'font-family="Helvetica,Arial,sans-serif" font-size="8" fill="{C_GREY}">'
-        f'Component with redline findings (N = change number)</text>'
+        f'<text x="{lx2 + 42}" y="{leg_y + 16}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
+        f'Redline (N = change no.)</text>'
     )
     # Priority badges
-    lx3 = 540
+    lx3 = 320
     for label, col in [("CRITICAL", C_RED), ("MAJOR", C_AMBER), ("MINOR", "#2471A3")]:
         parts.append(
             f'<circle cx="{lx3}" cy="{leg_y + 12}" r="7" fill="{col}"/>'
@@ -581,7 +585,7 @@ def build_diagram_svg(parse_result, review_result) -> str:
             f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
             f'{label}</text>'
         )
-        lx3 += 75
+        lx3 += 58
 
     parts.append('</svg>')
 
