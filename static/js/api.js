@@ -1,6 +1,6 @@
 /* MEX Safety Agent — API layer */
 const API = (() => {
-  const BASE = '';
+  const BASE = 'https://mex-safety-agent-production.up.railway.app';
   const API_KEY = 'cf79f4cd47506a284b9bd75ff35d24ff00e97dbadff6b9002cea958dc4984ea1';
 
   async function _handleResponse(res) {
