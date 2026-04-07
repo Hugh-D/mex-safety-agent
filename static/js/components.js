@@ -98,8 +98,16 @@ function renderSteps(current) {
   return steps.map((s, i) => {
     const cls = s.n === current ? 'active' : s.n < current ? 'done' : '';
     const sep = i < steps.length-1 ? '<span class="step-sep">›</span>' : '';
-    return `<div class="step ${cls}"><div class="step-num">${s.n < current ? '✓' : s.n}</div>${s.label}</div>${sep}`;
+    return `<a class="step ${cls}" href="${s.href}"><div class="step-num">${s.n < current ? '✓' : s.n}</div>${s.label}</a>${sep}`;
   }).join('');
+}
+
+/* ── New project reset ── */
+function resetProject() {
+  if (confirm('Start a new project?\n\nThis will clear all current session data (parse results, review, equipment list).')) {
+    State.clear();
+    window.location.href = '/';
+  }
 }
 
 function escHtml(str) {

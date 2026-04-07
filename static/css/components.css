@@ -142,21 +142,39 @@
 .banner-warn    { background: #FEF9E7; color: #784212; border-left: 3px solid var(--amber); }
 
 /* ── Step progress ── */
-.steps { display: flex; gap: 0; }
+.steps { display: flex; gap: 0; align-items: center; }
 .step {
   display: flex; align-items: center; gap: 0.4rem;
   font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.5);
-  padding: 0 0.75rem;
+  padding: 0 0.75rem; text-decoration: none;
+  transition: color 0.15s;
 }
-.step.active { color: var(--lime); }
-.step.done   { color: rgba(255,255,255,0.75); }
+.step:hover        { color: rgba(255,255,255,0.85); }
+.step.active       { color: var(--lime); }
+.step.active:hover { color: var(--lime); }
+.step.done         { color: rgba(255,255,255,0.75); }
+.step.done:hover   { color: var(--white); }
 .step-num {
   width: 20px; height: 20px; border-radius: 50%; border: 2px solid currentColor;
   display: flex; align-items: center; justify-content: center; font-size: 0.7rem;
   flex-shrink: 0;
 }
 .step.active .step-num { background: var(--lime); border-color: var(--lime); color: var(--white); }
-.step-sep { color: rgba(255,255,255,0.25); font-size: 0.75rem; }
+.step-sep { color: rgba(255,255,255,0.25); font-size: 0.75rem; padding: 0 0.1rem; }
+
+/* ── Nav reset button ── */
+.btn-reset {
+  background: transparent; color: rgba(255,255,255,0.65);
+  border: 1px solid rgba(255,255,255,0.25); border-radius: var(--radius);
+  padding: 0.3rem 0.8rem; font-size: 0.78rem; font-weight: 600;
+  font-family: var(--font); cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn-reset:hover {
+  background: rgba(255,255,255,0.1); color: var(--white);
+  border-color: rgba(255,255,255,0.5);
+}
 
 /* ── Dropzone ── */
 .dropzone {
