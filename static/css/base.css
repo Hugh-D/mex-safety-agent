@@ -1,0 +1,53 @@
+/* MEX Safety Agent — Base styles */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:       #002559;
+  --navy-light: #1d4382;
+  --lime:       #70bf54;
+  --lime-dark:  #5aaa40;
+  --lime2:      #bdd747;
+  --red:        #C0392B;
+  --amber:      #E67E22;
+  --grey-dark:  #2C3E50;
+  --grey-mid:   #566573;
+  --grey-light: #F2F3F4;
+  --border:     #BFC9CA;
+  --white:      #ffffff;
+  --shadow:     0 2px 8px rgba(0,0,0,0.10);
+  --radius:     6px;
+  --font:       -apple-system, 'Segoe UI', Arial, sans-serif;
+}
+
+html { font-size: 15px; }
+body { font-family: var(--font); color: var(--grey-dark); background: #f0f2f5; min-height: 100vh; }
+
+h1 { font-size: 1.5rem; color: var(--navy); font-weight: 700; }
+h2 { font-size: 1.15rem; color: var(--navy); font-weight: 600; margin-bottom: 0.5rem; }
+h3 { font-size: 0.95rem; color: var(--navy); font-weight: 600; }
+p  { line-height: 1.6; color: var(--grey-mid); font-size: 0.9rem; }
+
+a { color: var(--navy-light); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+input, select, textarea {
+  font-family: var(--font);
+  font-size: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.65rem;
+  width: 100%;
+  color: var(--grey-dark);
+  background: var(--white);
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--navy-light);
+  box-shadow: 0 0 0 3px rgba(29,67,130,0.12);
+}
+input:disabled { background: var(--grey-light); color: var(--grey-mid); }
+
+label { font-size: 0.8rem; font-weight: 600; color: var(--grey-mid); display: block; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+.required::after { content: ' *'; color: var(--red); }

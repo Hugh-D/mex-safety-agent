@@ -1,0 +1,195 @@
+/* MEX Safety Agent — Component styles */
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 1.2rem; border-radius: var(--radius);
+  font-size: 0.875rem; font-weight: 600; font-family: var(--font);
+  cursor: pointer; border: 2px solid transparent;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary { background: var(--navy); color: var(--white); border-color: var(--navy); }
+.btn-primary:hover:not(:disabled) { background: var(--navy-light); border-color: var(--navy-light); }
+
+.btn-cta { background: var(--lime); color: var(--white); border-color: var(--lime); }
+.btn-cta:hover:not(:disabled) { background: var(--lime-dark); border-color: var(--lime-dark); }
+
+.btn-ghost { background: transparent; color: var(--navy); border-color: var(--border); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--navy); background: var(--grey-light); }
+
+.btn-danger { background: transparent; color: var(--red); border-color: transparent; font-size: 0.8rem; padding: 0.3rem 0.5rem; }
+.btn-danger:hover:not(:disabled) { background: #FDEDEC; }
+
+.btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+/* ── Cards ── */
+.card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--grey-light);
+}
+.card-header h2 { margin: 0; }
+
+/* ── Badges ── */
+.badge {
+  display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.badge-fail     { background: #FDEDEC; color: var(--red); }
+.badge-warn     { background: #FEF9E7; color: #784212; }
+.badge-pass     { background: #EAFAF1; color: #196F3D; }
+.badge-critical { background: #FDEDEC; color: var(--red); }
+.badge-major    { background: #FEF9E7; color: #784212; }
+.badge-minor    { background: #EAF4FB; color: #1A5276; }
+.badge-ok       { background: #EAFAF1; color: #196F3D; }
+
+/* ── Spinner ── */
+.spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.35);
+  border-top-color: var(--white);
+  animation: spin 0.7s linear infinite; flex-shrink: 0;
+}
+.spinner-dark {
+  border-color: rgba(0,37,89,0.2);
+  border-top-color: var(--navy);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Loading overlay on card ── */
+.loading-bar {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem 1rem; background: var(--grey-light);
+  border-radius: var(--radius); margin-top: 0.75rem;
+  font-size: 0.85rem; color: var(--grey-mid);
+}
+
+/* ── Toast ── */
+#toast-container {
+  position: fixed; top: 1rem; right: 1rem; z-index: 9999;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.toast {
+  padding: 0.75rem 1.1rem; border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18); font-size: 0.875rem;
+  max-width: 340px; animation: slideIn 0.2s ease;
+}
+.toast-error   { background: var(--red);   color: var(--white); }
+.toast-success { background: #196F3D;       color: var(--white); }
+.toast-info    { background: var(--navy);   color: var(--white); }
+@keyframes slideIn { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+
+/* ── Form grid ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-grid .span-2 { grid-column: span 2; }
+.form-group { display: flex; flex-direction: column; }
+
+/* ── Equipment table ── */
+.eq-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.eq-table th {
+  background: var(--navy); color: var(--white);
+  padding: 0.5rem 0.65rem; text-align: left; font-size: 0.78rem;
+  font-weight: 600; letter-spacing: 0.03em;
+}
+.eq-table td { padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--grey-light); }
+.eq-table tr:last-child td { border-bottom: none; }
+.eq-table td input, .eq-table td select { padding: 0.3rem 0.5rem; }
+
+/* ── Result panels ── */
+.finding-card {
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 0.65rem;
+  border: 1px solid var(--border);
+}
+.finding-header {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+}
+.finding-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--white); display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+}
+.finding-body { padding: 0.6rem 0.75rem; font-size: 0.85rem; line-height: 1.55; }
+.finding-ref  { font-size: 0.78rem; color: var(--grey-mid); margin-top: 0.3rem; }
+.finding-action {
+  padding: 0.5rem 0.75rem; font-size: 0.83rem; font-style: italic;
+  border-top: 1px solid var(--border); background: var(--white);
+  color: var(--navy);
+}
+
+.finding-CRITICAL .finding-header { background: var(--red);   color: var(--white); }
+.finding-CRITICAL .finding-body   { background: #FDEDEC; }
+.finding-MAJOR    .finding-header { background: var(--amber); color: var(--white); }
+.finding-MAJOR    .finding-body   { background: #FEF9E7; }
+.finding-MINOR    .finding-header { background: #2471A3;       color: var(--white); }
+.finding-MINOR    .finding-body   { background: #EAF4FB; }
+
+/* ── Info banner ── */
+.banner {
+  padding: 0.65rem 1rem; border-radius: var(--radius);
+  font-size: 0.85rem; margin-bottom: 1rem;
+  display: flex; align-items: flex-start; gap: 0.5rem;
+}
+.banner-info    { background: #EAF4FB; color: #1A5276; border-left: 3px solid #2471A3; }
+.banner-success { background: #EAFAF1; color: #196F3D; border-left: 3px solid var(--lime); }
+.banner-warn    { background: #FEF9E7; color: #784212; border-left: 3px solid var(--amber); }
+
+/* ── Step progress ── */
+.steps { display: flex; gap: 0; }
+.step {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.5);
+  padding: 0 0.75rem;
+}
+.step.active { color: var(--lime); }
+.step.done   { color: rgba(255,255,255,0.75); }
+.step-num {
+  width: 20px; height: 20px; border-radius: 50%; border: 2px solid currentColor;
+  display: flex; align-items: center; justify-content: center; font-size: 0.7rem;
+  flex-shrink: 0;
+}
+.step.active .step-num { background: var(--lime); border-color: var(--lime); color: var(--white); }
+.step-sep { color: rgba(255,255,255,0.25); font-size: 0.75rem; }
+
+/* ── Dropzone ── */
+.dropzone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 2.5rem 1rem; text-align: center; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--grey-light);
+}
+.dropzone:hover, .dropzone.drag-over {
+  border-color: var(--navy-light); background: #EAF4FB;
+}
+.dropzone.has-file { border-color: var(--lime); background: #EAFAF1; }
+.dropzone-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.dropzone-text { font-size: 0.9rem; color: var(--grey-mid); }
+.dropzone-file { font-size: 0.85rem; color: var(--navy); font-weight: 600; margin-top: 0.4rem; }
+
+/* ── Summary row ── */
+.summary-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-bottom: 1rem; }
+.summary-tile {
+  background: var(--grey-light); border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+}
+.summary-tile .label { font-size: 0.72rem; color: var(--grey-mid); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.summary-tile .value { font-size: 1.1rem; font-weight: 700; color: var(--navy); margin-top: 0.2rem; }
+
+/* ── Utility ── */
+.hidden   { display: none !important; }
+.mt-1     { margin-top: 0.5rem; }
+.mt-2     { margin-top: 1rem; }
+.mt-3     { margin-top: 1.5rem; }
+.flex     { display: flex; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.gap-1    { gap: 0.5rem; }
+.gap-2    { gap: 1rem; }
+.text-sm  { font-size: 0.82rem; }
+.text-mid { color: var(--grey-mid); }

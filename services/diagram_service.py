@@ -1,0 +1,612 @@
+"""
+Diagram service — MEX Safety Agent
+Generates a programmatic SVG safety circuit block diagram with redline markup.
+No Claude API call — layout and annotations are built deterministically.
+
+Phase 1: block diagram style with IEC-style column layout.
+Phase 2 (deferred): replace _draw_component_box() with proper IEC 60617 symbols.
+"""
+
+import io
+import logging
+import re
+from collections import defaultdict
+
+logger = logging.getLogger(__name__)
+
+# ── SVG layout constants ───────────────────────────────────────────────────────
+SVG_W      = 800
+COL_X      = [20, 325, 630]      # left edge of boxes for each column
+BOX_W      = 150
+BOX_H      = 32
+BOX_GAP    = 10
+COMP_Y0    = 92                   # y of first component row
+TITLE_H    = 52                   # height of title / header area
+COL_HDR_H  = 28                   # column header strip height
+LEGEND_H   = 36                   # legend strip at bottom
+MIN_H      = 320
+MAX_H      = 620      # cap height so it always fits on one A4 page at full width
+
+BADGE_R    = 9                    # redline circled-number radius
+
+# ── Colours ────────────────────────────────────────────────────────────────────
+C_NAVY  = "#002559"
+C_NAVY2 = "#1d4382"
+C_LIME  = "#70bf54"
+C_RED   = "#C0392B"
+C_AMBER = "#E67E22"
+C_WHITE = "#FFFFFF"
+C_GREY  = "#566573"
+C_LGREY = "#ECF0F1"
+C_BG    = "#F8F9FA"
+
+# ── Column definitions ─────────────────────────────────────────────────────────
+COLUMN_LABELS = [
+    "E-STOP INPUTS",
+    "SAFETY RELAY / RESET",
+    "OUTPUTS / PLC / CONTACTORS",
+]
+
+# Maps ParsedComponent.type -> column index (None = skip / don't render)
+TYPE_TO_COL = {
+    "estop":          0,
+    "safety_switch":  0,
+    "light_curtain":  0,
+    "scanner":        0,
+    "safety_relay":   1,
+    "safety_plc":     1,
+    "contactor":      2,
+    "vfd":            2,
+    "unknown":        2,
+    "terminal":       None,
+}
+
+# Colours for the priority badge on a change-number circle
+PRIORITY_COLOUR = {
+    "CRITICAL": C_RED,
+    "MAJOR":    C_AMBER,
+    "MINOR":    "#2471A3",
+}
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _g(obj, attr, default=""):
+    """Get attribute from a Pydantic model or dict."""
+    if isinstance(obj, dict):
+        return obj.get(attr, default)
+    return getattr(obj, attr, default)
+
+
+def _xe(s: str) -> str:
+    """Escape XML special characters."""
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def _trunc(s: str, n: int) -> str:
+    s = str(s)
+    return s if len(s) <= n else s[:n - 1] + "\u2026"
+
+
+def _type_to_col(device_type) -> int | None:
+    # Handle both raw strings and str-enum instances (ComponentType)
+    val = device_type.value if hasattr(device_type, "value") else str(device_type)
+    return TYPE_TO_COL.get(val.lower(), 2)
+
+
+def _priority(change) -> str:
+    return str(_g(change, "priority", "MINOR")).upper()
+
+
+# ── Change-to-component mapping ────────────────────────────────────────────────
+
+def _map_changes_to_components(components: list, changes: list) -> dict[str, list]:
+    """
+    Returns {comp_id: [change_id, ...]} by scanning each change's description
+    and action text for component IDs and label fragments.
+    """
+    result: dict[str, list] = defaultdict(list)
+
+    for ch in changes:
+        ch_id = _g(ch, "id", 0)
+        desc  = _g(ch, "description", "")
+        desc  = " ".join(desc) if isinstance(desc, list) else desc
+        text  = (desc + " " + _g(ch, "action", "")).upper()
+
+        for comp in components:
+            cid   = str(_g(comp, "id",    "")).strip()
+            label = str(_g(comp, "label", "")).strip()
+            model = str(_g(comp, "model", "") or "").strip()
+
+            matched = False
+            if cid and re.search(r'\b' + re.escape(cid.upper()) + r'\b', text):
+                matched = True
+            elif label and len(label) >= 4 and label.upper() in text:
+                matched = True
+            elif model and len(model) >= 4 and model.upper() in text:
+                matched = True
+
+            if matched and ch_id not in result[cid]:
+                result[cid].append(ch_id)
+
+    return dict(result)
+
+
+# ── IEC 60617-inspired symbol drawing ─────────────────────────────────────────
+# Each function draws into a 26×26 viewport centred at (cx, cy).
+
+SYM_W = 28   # symbol zone width (left side of each box); text starts at x + SYM_W + 4
+
+
+def _sym_estop(cx: int, cy: int) -> str:
+    """Mushroom-head e-stop: red cap + stem + normally-closed contact."""
+    return (
+        # Mushroom cap (red filled ellipse)
+        f'<ellipse cx="{cx}" cy="{cy - 7}" rx="10" ry="5" '
+        f'fill="{C_RED}" stroke="{C_RED}" stroke-width="1"/>'
+        # Stem
+        f'<rect x="{cx - 2}" y="{cy - 3}" width="4" height="6" fill="#555555"/>'
+        # NC contact — horizontal bar
+        f'<line x1="{cx - 8}" y1="{cy + 8}" x2="{cx + 8}" y2="{cy + 8}" '
+        f'stroke="{C_NAVY}" stroke-width="1.5"/>'
+        # NC diagonal slash through contact
+        f'<line x1="{cx - 4}" y1="{cy + 4}" x2="{cx + 4}" y2="{cy + 12}" '
+        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+    )
+
+
+def _sym_safety_switch(cx: int, cy: int) -> str:
+    """Interlocked guard switch: actuator key + NC contact."""
+    return (
+        # Key shaft
+        f'<rect x="{cx - 7}" y="{cy - 10}" width="5" height="12" rx="2" '
+        f'fill="{C_NAVY2}" stroke="{C_NAVY}" stroke-width="1"/>'
+        # Key bit
+        f'<rect x="{cx - 7}" y="{cy - 2}" width="8" height="4" rx="1" '
+        f'fill="{C_NAVY2}"/>'
+        # NC contact bar
+        f'<line x1="{cx - 1}" y1="{cy + 6}" x2="{cx + 9}" y2="{cy + 6}" '
+        f'stroke="{C_NAVY}" stroke-width="1.5"/>'
+        f'<line x1="{cx + 1}" y1="{cy + 2}" x2="{cx + 8}" y2="{cy + 10}" '
+        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+    )
+
+
+def _sym_light_curtain(cx: int, cy: int) -> str:
+    """Light curtain: two vertical bars with arrows between."""
+    return (
+        # Left emitter bar
+        f'<rect x="{cx - 11}" y="{cy - 10}" width="4" height="20" rx="1" '
+        f'fill="{C_NAVY}" stroke="{C_NAVY}" stroke-width="0.5"/>'
+        # Right receiver bar
+        f'<rect x="{cx + 7}" y="{cy - 10}" width="4" height="20" rx="1" '
+        f'fill="{C_NAVY2}" stroke="{C_NAVY}" stroke-width="0.5"/>'
+        # Beam arrows (3 horizontal dashed lines)
+        f'<line x1="{cx - 7}" y1="{cy - 5}" x2="{cx + 7}" y2="{cy - 5}" '
+        f'stroke="{C_LIME}" stroke-width="1" stroke-dasharray="2,2"/>'
+        f'<line x1="{cx - 7}" y1="{cy}" x2="{cx + 7}" y2="{cy}" '
+        f'stroke="{C_LIME}" stroke-width="1" stroke-dasharray="2,2"/>'
+        f'<line x1="{cx - 7}" y1="{cy + 5}" x2="{cx + 7}" y2="{cy + 5}" '
+        f'stroke="{C_LIME}" stroke-width="1" stroke-dasharray="2,2"/>'
+    )
+
+
+def _sym_scanner(cx: int, cy: int) -> str:
+    """Laser scanner: fan-shaped scan sector."""
+    return (
+        # Scanner body (small circle)
+        f'<circle cx="{cx}" cy="{cy + 6}" r="5" '
+        f'fill="{C_NAVY}" stroke="{C_NAVY}" stroke-width="0.5"/>'
+        # Scan sector (arc approximated by two lines)
+        f'<line x1="{cx}" y1="{cy + 6}" x2="{cx - 12}" y2="{cy - 8}" '
+        f'stroke="{C_LIME}" stroke-width="1.2"/>'
+        f'<line x1="{cx}" y1="{cy + 6}" x2="{cx + 12}" y2="{cy - 8}" '
+        f'stroke="{C_LIME}" stroke-width="1.2"/>'
+        # Arc top
+        f'<path d="M {cx - 12} {cy - 8} Q {cx} {cy - 16} {cx + 12} {cy - 8}" '
+        f'fill="none" stroke="{C_LIME}" stroke-width="1" stroke-dasharray="2,2"/>'
+    )
+
+
+def _sym_safety_relay(cx: int, cy: int) -> str:
+    """Safety relay: coil rectangle with 'K' designation and dual contacts."""
+    return (
+        # Relay coil rectangle (IEC style)
+        f'<rect x="{cx - 10}" y="{cy - 8}" width="20" height="10" rx="1" '
+        f'fill="none" stroke="{C_NAVY}" stroke-width="1.5"/>'
+        # Coil terminal lines
+        f'<line x1="{cx - 10}" y1="{cy - 3}" x2="{cx - 14}" y2="{cy - 3}" '
+        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+        f'<line x1="{cx + 10}" y1="{cy - 3}" x2="{cx + 14}" y2="{cy - 3}" '
+        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+        # K label inside coil
+        f'<text x="{cx}" y="{cy - 1}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="6.5" font-weight="bold" fill="{C_NAVY}" text-anchor="middle">K</text>'
+        # Forced-guided contact dots (safety feature indicator)
+        f'<circle cx="{cx - 4}" cy="{cy + 6}" r="2.5" fill="{C_NAVY2}"/>'
+        f'<circle cx="{cx + 4}" cy="{cy + 6}" r="2.5" fill="{C_NAVY2}"/>'
+    )
+
+
+def _sym_safety_plc(cx: int, cy: int) -> str:
+    """Safety PLC: CPU block with I/O pins."""
+    return (
+        # CPU body
+        f'<rect x="{cx - 9}" y="{cy - 10}" width="18" height="16" rx="2" '
+        f'fill="{C_NAVY2}" stroke="{C_NAVY}" stroke-width="1.5"/>'
+        # CPU label
+        f'<text x="{cx}" y="{cy - 1}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="5.5" font-weight="bold" fill="{C_WHITE}" text-anchor="middle">CPU</text>'
+        # Left I/O pins
+        f'<line x1="{cx - 13}" y1="{cy - 6}" x2="{cx - 9}" y2="{cy - 6}" '
+        f'stroke="{C_LIME}" stroke-width="1.5"/>'
+        f'<line x1="{cx - 13}" y1="{cy - 1}" x2="{cx - 9}" y2="{cy - 1}" '
+        f'stroke="{C_LIME}" stroke-width="1.5"/>'
+        # Right I/O pins
+        f'<line x1="{cx + 9}" y1="{cy - 6}" x2="{cx + 13}" y2="{cy - 6}" '
+        f'stroke="{C_LIME}" stroke-width="1.5"/>'
+        f'<line x1="{cx + 9}" y1="{cy - 1}" x2="{cx + 13}" y2="{cy - 1}" '
+        f'stroke="{C_LIME}" stroke-width="1.5"/>'
+        # Safety indicator (small green bar at bottom)
+        f'<rect x="{cx - 9}" y="{cy + 4}" width="18" height="3" rx="1" fill="{C_LIME}"/>'
+    )
+
+
+def _sym_contactor(cx: int, cy: int) -> str:
+    """Contactor: main contacts above, operating coil below (IEC style)."""
+    return (
+        # Main contact — moving bridge
+        f'<line x1="{cx - 8}" y1="{cy - 9}" x2="{cx - 8}" y2="{cy - 4}" '
+        f'stroke="{C_NAVY}" stroke-width="1.5"/>'
+        f'<line x1="{cx + 8}" y1="{cy - 9}" x2="{cx + 8}" y2="{cy - 4}" '
+        f'stroke="{C_NAVY}" stroke-width="1.5"/>'
+        f'<line x1="{cx - 8}" y1="{cy - 4}" x2="{cx + 8}" y2="{cy - 4}" '
+        f'stroke="{C_NAVY}" stroke-width="2"/>'
+        # Coil rectangle
+        f'<rect x="{cx - 8}" y="{cy + 1}" width="16" height="8" rx="1" '
+        f'fill="none" stroke="{C_NAVY}" stroke-width="1.5"/>'
+        # Coil terminal stubs
+        f'<line x1="{cx - 4}" y1="{cy + 9}" x2="{cx - 4}" y2="{cy + 13}" '
+        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+        f'<line x1="{cx + 4}" y1="{cy + 9}" x2="{cx + 4}" y2="{cy + 13}" '
+        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
+    )
+
+
+def _sym_vfd(cx: int, cy: int) -> str:
+    """VFD: box with AC-to-variable-frequency symbol."""
+    return (
+        # Drive body
+        f'<rect x="{cx - 11}" y="{cy - 10}" width="22" height="18" rx="2" '
+        f'fill="{C_LGREY}" stroke="{C_NAVY}" stroke-width="1.5"/>'
+        # AC input sine squiggle (left)
+        f'<path d="M {cx - 9} {cy - 2} Q {cx - 7} {cy - 6} {cx - 5} {cy - 2} '
+        f'Q {cx - 3} {cy + 2} {cx - 1} {cy - 2}" '
+        f'fill="none" stroke="{C_NAVY}" stroke-width="1"/>'
+        # Arrow pointing right
+        f'<line x1="{cx - 1}" y1="{cy - 2}" x2="{cx + 2}" y2="{cy - 2}" '
+        f'stroke="{C_NAVY}" stroke-width="1"/>'
+        f'<polygon points="{cx + 2},{cy - 4} {cx + 5},{cy - 2} {cx + 2},{cy}" '
+        f'fill="{C_NAVY}"/>'
+        # Variable freq output (short waves)
+        f'<path d="M {cx + 5} {cy - 2} Q {cx + 7} {cy - 5} {cx + 9} {cy - 2}" '
+        f'fill="none" stroke="{C_NAVY2}" stroke-width="1"/>'
+        # "VFD" label at bottom
+        f'<text x="{cx}" y="{cy + 10}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="5" font-weight="bold" fill="{C_GREY}" text-anchor="middle">VFD</text>'
+    )
+
+
+def _sym_unknown(cx: int, cy: int) -> str:
+    """Generic component: plain rectangle with '?' marker."""
+    return (
+        f'<rect x="{cx - 10}" y="{cy - 8}" width="20" height="16" rx="2" '
+        f'fill="{C_LGREY}" stroke="{C_GREY}" stroke-width="1" stroke-dasharray="3,2"/>'
+        f'<text x="{cx}" y="{cy + 4}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="10" fill="{C_GREY}" text-anchor="middle">?</text>'
+    )
+
+
+# Dispatch table: component type -> symbol function
+_SYMBOL_FN = {
+    "estop":         _sym_estop,
+    "safety_switch": _sym_safety_switch,
+    "light_curtain": _sym_light_curtain,
+    "scanner":       _sym_scanner,
+    "safety_relay":  _sym_safety_relay,
+    "safety_plc":    _sym_safety_plc,
+    "contactor":     _sym_contactor,
+    "vfd":           _sym_vfd,
+}
+
+
+def _draw_iec_symbol(comp_type: str, x: int, y: int, box_h: int = BOX_H) -> str:
+    """Draw the IEC symbol for comp_type in the left zone of a component box."""
+    cx = x + SYM_W // 2
+    cy = y + box_h // 2
+    val = comp_type.value if hasattr(comp_type, "value") else str(comp_type).lower()
+    fn  = _SYMBOL_FN.get(val, _sym_unknown)
+    return fn(cx, cy)
+
+
+# ── SVG building blocks ────────────────────────────────────────────────────────
+
+def _draw_component_box(comp, x: int, y: int, change_ids: list, all_changes: dict,
+                        box_h: int = BOX_H) -> str:
+    """Draw a component box with IEC 60617 symbol on the left and ID/label text on the right."""
+    cid       = _xe(_g(comp, "id",    "?"))
+    label     = _xe(_trunc(_g(comp, "label", ""), 18))
+    model     = _xe(_trunc(_g(comp, "model", "") or "", 16))
+    comp_type = _g(comp, "type", "unknown")
+
+    has_redline = bool(change_ids)
+    border_col  = C_RED     if has_redline else C_NAVY
+    fill_col    = "#FFF5F5" if has_redline else C_LGREY
+    stroke_w    = 1.5       if has_redline else 1
+    dash        = 'stroke-dasharray="5,3"' if has_redline else ""
+
+    # Scale font sizes down when boxes are small
+    fs_id    = 8.5 if box_h >= 28 else 7.0
+    fs_label = 7.5 if box_h >= 28 else 6.0
+    # Text positions as fractions of box height
+    text_y1 = y + max(10, box_h * 2 // 5)
+    text_y2 = y + max(17, box_h * 4 // 5)
+
+    parts = []
+
+    # Outer box
+    parts.append(
+        f'<rect x="{x}" y="{y}" width="{BOX_W}" height="{box_h}" '
+        f'rx="3" fill="{fill_col}" stroke="{border_col}" stroke-width="{stroke_w}" {dash}/>'
+    )
+
+    # Symbol zone divider
+    sym_div_x = x + SYM_W + 2
+    parts.append(
+        f'<line x1="{sym_div_x}" y1="{y + 3}" x2="{sym_div_x}" y2="{y + box_h - 3}" '
+        f'stroke="{border_col}" stroke-width="0.5" opacity="0.4"/>'
+    )
+
+    # IEC symbol (only when box is tall enough to show it meaningfully)
+    if box_h >= 20:
+        parts.append(_draw_iec_symbol(comp_type, x, y, box_h))
+
+    # Text zone (right of symbol)
+    tx = x + SYM_W + 6
+
+    # ID label (bold)
+    parts.append(
+        f'<text x="{tx}" y="{text_y1}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="{fs_id}" '
+        f'font-weight="bold" fill="{C_NAVY}">{cid}</text>'
+    )
+
+    # Label or model (smaller, second line — skip if box too short for two lines)
+    if box_h >= 24:
+        display = label if label else model
+        parts.append(
+            f'<text x="{tx}" y="{text_y2}" '
+            f'font-family="Helvetica,Arial,sans-serif" font-size="{fs_label}" '
+            f'fill="{C_GREY}">{display}</text>'
+        )
+
+    # Redline change-number badges (top-right, stacked left)
+    if change_ids:
+        badge_r = min(BADGE_R, box_h // 2 - 1)
+        badge_x = x + BOX_W - badge_r - 2
+        for ch_id in sorted(change_ids)[:4]:   # max 4 badges
+            priority  = _priority(all_changes.get(ch_id, {}))
+            badge_col = PRIORITY_COLOUR.get(priority, C_RED)
+            badge_y   = y - badge_r + min(6, box_h // 2)
+            parts.append(
+                f'<circle cx="{badge_x}" cy="{badge_y}" r="{badge_r}" '
+                f'fill="{badge_col}" stroke="{C_WHITE}" stroke-width="1"/>'
+            )
+            parts.append(
+                f'<text x="{badge_x}" y="{badge_y + badge_r // 2}" '
+                f'font-family="Helvetica,Arial,sans-serif" font-size="{max(5, badge_r - 2)}" '
+                f'font-weight="bold" fill="{C_WHITE}" '
+                f'text-anchor="middle">{ch_id}</text>'
+            )
+            badge_x -= (badge_r * 2 + 3)
+
+    return "\n".join(parts)
+
+
+def _draw_connection_arrow(x1: int, y1: int, x2: int, y2: int) -> str:
+    """Draw a horizontal flow arrow between two column boxes using a line + triangle tip."""
+    tip_w, tip_h = 10, 7
+    # Line stops short of the arrowhead
+    return (
+        f'<line x1="{x1}" y1="{y1}" x2="{x2 - tip_w}" y2="{y2}" '
+        f'stroke="{C_NAVY2}" stroke-width="1.5"/>'
+        f'<polygon points="{x2 - tip_w},{y2 - tip_h // 2} {x2},{y2} {x2 - tip_w},{y2 + tip_h // 2}" '
+        f'fill="{C_NAVY2}"/>'
+    )
+
+
+def _draw_col_header(col_idx: int, y: int) -> str:
+    x     = COL_X[col_idx]
+    label = COLUMN_LABELS[col_idx]
+    # Full-width header background covering the column boxes
+    return (
+        f'<rect x="{x}" y="{y}" width="{BOX_W}" height="{COL_HDR_H - 4}" '
+        f'rx="3" fill="{C_NAVY}"/>'
+        f'<text x="{x + BOX_W // 2}" y="{y + 12}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" '
+        f'font-weight="bold" fill="{C_WHITE}" text-anchor="middle">'
+        f'{_xe(label)}</text>'
+    )
+
+
+# ── Main SVG builder ───────────────────────────────────────────────────────────
+
+def build_diagram_svg(parse_result, review_result) -> str:
+    """
+    Build a complete SVG block diagram string from parse + review data.
+    Returns a valid SVG string ready for embedding in PDF.
+    """
+    # Gather data
+    components = list(_g(parse_result, "components", []))
+    changes    = list(_g(review_result, "changes", []))
+    machine    = _xe(_g(getattr(review_result, '__dict__', {}) or review_result, "project_number", "")
+                     or "Safety Circuit Review")
+
+    # Build a lookup: change_id -> change object (for priority lookup in badges)
+    change_by_id = {_g(ch, "id", i): ch for i, ch in enumerate(changes)}
+
+    # Filter to renderable components (skip terminals)
+    renderable = [c for c in components if _type_to_col(_g(c, "type", "unknown")) is not None]
+
+    # Assign components to columns
+    cols: list[list] = [[], [], []]
+    for comp in renderable:
+        col = _type_to_col(_g(comp, "type", "unknown"))
+        if col is not None:
+            cols[col].append(comp)
+
+    # Map changes to component IDs
+    change_map = _map_changes_to_components(renderable, changes)
+
+    # Dynamic row sizing — guarantee all components fit within MAX_H so no element
+    # is drawn outside the viewBox (svglib measures all elements, not just the viewport).
+    max_rows    = max((len(c) for c in cols), default=1)
+    available_h = MAX_H - TITLE_H - COL_HDR_H - LEGEND_H - 20
+    dyn_row_h   = max(22, available_h // max(max_rows, 1))
+    dyn_box_h   = max(18, dyn_row_h - 4)
+    dyn_box_gap = dyn_row_h - dyn_box_h
+
+    content_h = max_rows * dyn_row_h + 4
+    svg_h     = min(MAX_H, max(MIN_H, TITLE_H + COL_HDR_H + content_h + LEGEND_H + 20))
+
+    parts = []
+
+    # SVG root + background
+    parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {SVG_W} {svg_h}" '
+        f'width="{SVG_W}" height="{svg_h}">'
+    )
+    parts.append(f'<rect width="{SVG_W}" height="{svg_h}" fill="{C_WHITE}"/>')
+
+    # Title bar
+    parts.append(
+        f'<rect x="0" y="0" width="{SVG_W}" height="{TITLE_H}" fill="{C_NAVY}"/>'
+    )
+    parts.append(
+        f'<rect x="0" y="{TITLE_H - 4}" width="{SVG_W}" height="4" fill="{C_LIME}"/>'
+    )
+    parts.append(
+        f'<text x="20" y="22" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="12" font-weight="bold" fill="{C_WHITE}">'
+        f'Safety Circuit Schematic \u2014 E-Stop / Safety Relay / Outputs (Redline Review)'
+        f'</text>'
+    )
+    parts.append(
+        f'<text x="20" y="40" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="8" fill="#AEB6BF">MEX Engineering Group \u00b7 Redline annotations '
+        f'correspond to numbered change items in the review report</text>'
+    )
+
+    # Column headers
+    hdr_y = TITLE_H + 4
+    for ci in range(3):
+        parts.append(_draw_col_header(ci, hdr_y))
+
+    # Connection arrows (drawn behind components)
+    # Col0 -> Col1: from right edge of col0 to left edge of col1, at 1/2 height of logic area
+    arrow_y = COMP_Y0 + (len(cols[1]) * dyn_row_h) // 2 + dyn_box_h // 2 if cols[1] else COMP_Y0 + dyn_box_h // 2
+    x0_r  = COL_X[0] + BOX_W + 4
+    x1_l  = COL_X[1] - 4
+    x1_r  = COL_X[1] + BOX_W + 4
+    x2_l  = COL_X[2] - 4
+
+    parts.append(_draw_connection_arrow(x0_r, arrow_y, x1_l, arrow_y))
+    parts.append(_draw_connection_arrow(x1_r, arrow_y, x2_l, arrow_y))
+
+    # Components per column
+    for ci, col_comps in enumerate(cols):
+        cy = COMP_Y0
+        for comp in col_comps:
+            cid    = str(_g(comp, "id", "")).strip()
+            ch_ids = change_map.get(cid, [])
+            parts.append(_draw_component_box(comp, COL_X[ci], cy, ch_ids, change_by_id,
+                                             box_h=dyn_box_h))
+            cy += dyn_box_h + dyn_box_gap
+
+    # Legend
+    leg_y = svg_h - LEGEND_H + 4
+    parts.append(
+        f'<rect x="0" y="{leg_y - 4}" width="{SVG_W}" height="{LEGEND_H}" fill="{C_LGREY}"/>'
+    )
+    # Normal component sample
+    lx = 20
+    parts.append(
+        f'<rect x="{lx}" y="{leg_y + 4}" width="30" height="16" rx="3" '
+        f'fill="{C_LGREY}" stroke="{C_NAVY}" stroke-width="1"/>'
+    )
+    parts.append(
+        f'<text x="{lx + 35}" y="{leg_y + 16}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="8" fill="{C_GREY}">'
+        f'Component (no findings)</text>'
+    )
+    # Redline component sample
+    lx2 = 220
+    parts.append(
+        f'<rect x="{lx2}" y="{leg_y + 4}" width="30" height="16" rx="3" '
+        f'fill="#FFF5F5" stroke="{C_RED}" stroke-width="1.5" stroke-dasharray="5,3"/>'
+    )
+    parts.append(
+        f'<circle cx="{lx2 + 30}" cy="{leg_y + 4}" r="{BADGE_R}" '
+        f'fill="{C_RED}" stroke="{C_WHITE}" stroke-width="1"/>'
+    )
+    parts.append(
+        f'<text x="{lx2 + 30}" y="{leg_y + 8}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="7" font-weight="bold" '
+        f'fill="{C_WHITE}" text-anchor="middle">N</text>'
+    )
+    parts.append(
+        f'<text x="{lx2 + 45}" y="{leg_y + 16}" '
+        f'font-family="Helvetica,Arial,sans-serif" font-size="8" fill="{C_GREY}">'
+        f'Component with redline findings (N = change number)</text>'
+    )
+    # Priority badges
+    lx3 = 540
+    for label, col in [("CRITICAL", C_RED), ("MAJOR", C_AMBER), ("MINOR", "#2471A3")]:
+        parts.append(
+            f'<circle cx="{lx3}" cy="{leg_y + 12}" r="7" fill="{col}"/>'
+        )
+        parts.append(
+            f'<text x="{lx3 + 10}" y="{leg_y + 16}" '
+            f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
+            f'{label}</text>'
+        )
+        lx3 += 75
+
+    parts.append('</svg>')
+
+    return "\n".join(parts)
+
+
+# ── Public API (called from export_service) ────────────────────────────────────
+
+def generate_diagram_drawing(parse_result, review_result):
+    """
+    Returns a ReportLab Drawing of the redline SVG diagram, or None on failure.
+    """
+    try:
+        from svglib.svglib import svg2rlg
+
+        svg_text = build_diagram_svg(parse_result, review_result)
+        drawing  = svg2rlg(io.StringIO(svg_text))
+        if drawing is None:
+            logger.error("svg2rlg returned None for generated SVG")
+            return None
+        logger.info("Diagram generated: %d components, drawing %dx%d",
+                    len(list(_g(parse_result, "components", []))),
+                    int(drawing.width), int(drawing.height))
+        return drawing
+
+    except Exception as e:
+        logger.error("Diagram generation failed: %s", e, exc_info=True)
+        return None

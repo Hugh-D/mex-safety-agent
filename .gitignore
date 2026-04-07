@@ -1,0 +1,19 @@
+# Environment / secrets
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv*/
+*.egg-info/
+
+# Database (local only — on Railway use a persistent volume)
+data/equipment_library.db
+
+# Seed script output only — DB is rebuilt on deploy
+data/
+
+# Logs
+*.log
