@@ -15,59 +15,61 @@ logger = logging.getLogger(__name__)
 PARSER_SYSTEM_PROMPT = """You are an expert electrical engineer specialising in machine safety systems \
 compliant with AS4024, ISO 13849-1, and IEC 62061. You analyse electrical drawings — \
 single line diagrams, safety circuit schematics, and control system layouts — to identify \
-all safety-relevant components AND trace the wiring connections between them.
+all safety-relevant components AND trace the complete wiring topology.
 
 Identify ALL components present, categorised as:
-- estop         : E-stop pushbuttons (mushroom head)
+- estop         : E-stop pushbuttons (mushroom head, NC contact)
 - safety_switch : Interlocked guard switches, limit switches, safety door switches
-- light_curtain : Light curtains, AOPDs, ESPEs
+- light_curtain : Light curtains, AOPDs, ESPEs (Type 4 / Type 2)
 - scanner       : Laser area scanners, safety laser scanners
 - safety_relay  : Dedicated safety relay modules (e.g. Pilz PNOZ, SICK i10, Schmersal SRB)
 - safety_plc    : Safety PLCs, safety controllers, safety I/O (e.g. Pilz PSS, Siemens F-CPU)
-- contactor     : Contactors, motor starters, output switching devices, safety output contacts
-- vfd           : Variable frequency drives, soft starters, servo drives
-- terminal      : Wire labels, terminal blocks, cable IDs, circuit references
+- contactor     : Contactors, motor starters, output switching devices
+- vfd           : Variable frequency drives, soft starters, servo drives with STO
+- terminal      : Wire labels, terminal blocks, cable IDs
 
-ALSO trace the wiring between components. For each connection in the safety circuit, record which \
-output terminal of one component connects to which input terminal of the next. Focus on:
-- The main safety chain (E-stop/guard → safety relay/PLC → output contacts)
-- Feedback/monitoring loops (output contact feedback back to safety relay)
-- Reset signal paths
-- Cross-monitoring between redundant channels
+For dual-channel safety circuits set "channel" to "CH1" or "CH2" for each component.
+For components wired in series in a safety chain, set "series_group" to a shared label \
+(e.g. "ch1_inputs", "ch2_inputs", "gate_chain").
 
-Return ONLY valid JSON in exactly this structure — no preamble, no markdown fences:
+ALSO trace every wiring connection between safety-relevant components. For each connection record:
+- which output terminal of the source connects to which input terminal of the destination
+- the wire type: 'safety'=main safety chain; 'feedback'=output contact feedback to relay; \
+'power'=24VDC/0VDC supply; 'control'=reset/enable/mute signals
+- the wire label or cable number if shown on the drawing
+
+Return ONLY valid JSON — no preamble, no markdown fences:
 {
   "drawing_type": "single line diagram|schematic|safety circuit|control panel layout|unknown",
   "page_count": <integer>,
-  "summary": ["<sentence 1 about drawing scope>", "<sentence 2 about key safety elements>"],
+  "summary": ["<sentence 1>", "<sentence 2>"],
   "components": [
     {
-      "id": "<ref from drawing e.g. K1, ES1, X1>",
+      "id": "<ref e.g. K1, ES1, X1>",
       "label": "<human readable name>",
       "type": "<estop|safety_switch|light_curtain|scanner|safety_relay|safety_plc|contactor|vfd|terminal>",
       "manufacturer": "<if identifiable, else null>",
       "model": "<if identifiable, else null>",
       "pl_rating": "<PLa-PLe or null>",
       "location": "<where on drawing>",
+      "channel": "<CH1|CH2|null>",
+      "series_group": "<shared label for series-wired group, else null>",
       "notes": "<wiring config, NC/NO contacts, channel count, concerns>"
     }
   ],
   "connections": [
     {
       "from_id": "<source component ID>",
-      "from_port": "<terminal/pin label on source e.g. '13', 'Q1', 'OUT' — null if not shown>",
+      "from_port": "<terminal/pin on source e.g. '13','Q1' — null if not shown>",
       "to_id": "<destination component ID>",
-      "to_port": "<terminal/pin label on destination e.g. '14', 'I1', 'A1' — null if not shown>",
+      "to_port": "<terminal/pin on destination e.g. '14','I1' — null if not shown>",
       "wire_type": "<safety|power|control|feedback>",
-      "label": "<wire number or cable label from drawing — null if not shown>"
+      "label": "<wire number or cable label — null if not shown>"
     }
   ],
-  "wiring_observations": ["<observation 1>", "..."],
-  "safety_concerns": ["<concern 1>", "..."]
-}
-
-wire_type guide: 'safety' = main safety chain; 'feedback' = contact feedback/monitoring loops; \
-'power' = supply/24VDC; 'control' = reset/enable/mute signals."""
+  "wiring_observations": ["<observation>"],
+  "safety_concerns": ["<concern>"]
+}"""
 
 
 def _to_sentences(text: str) -> list:

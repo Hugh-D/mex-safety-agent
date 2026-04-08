@@ -53,9 +53,9 @@ Return ONLY valid JSON in exactly this structure — no preamble, no markdown fe
     {
       "id": <integer>,
       "priority": "CRITICAL|MAJOR|MINOR",
-      "description": ["<sentence 1: what is wrong>", "<sentence 2: why it matters>"],
+      "description": ["<sentence 1: what is wrong — always reference specific component IDs (e.g. ES01, K01) and terminal numbers (e.g. terminals 13/14) involved>", "<sentence 2: why it matters>"],
       "reference": "<standard and clause e.g. ISO 13849-1:2015 cl.6.2.4>",
-      "action": "<1 sentence: specific redline instruction>"
+      "action": "<1 sentence: specific redline instruction — always reference the specific component IDs (e.g. ES01, K01) and terminal numbers (e.g. terminals 13/14) involved in the finding>"
     }
   ],
   "equipment_notes": [

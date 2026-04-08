@@ -108,6 +108,8 @@ class ParsedComponent(BaseModel):
     model:        Optional[str] = None
     pl_rating:    Optional[PLRating] = None
     location:     Optional[str] = None
+    channel:      Optional[str] = None   # "CH1", "CH2", or null — dual-channel circuits
+    series_group: Optional[str] = None   # label grouping series-connected inputs
     notes:        Optional[str] = None
 
 

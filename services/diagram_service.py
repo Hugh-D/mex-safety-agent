@@ -64,6 +64,8 @@ SLD_COL_LABELS = [
     "OUTPUT CONTACTS",
 ]
 
+CHAIN_GAP = 14   # extra vertical pixels between unrelated series chains in same column
+
 # Maps ParsedComponent.type -> column index (None = skip / don't render)
 TYPE_TO_COL = {
     "estop":          0,
@@ -623,59 +625,168 @@ def _build_block_svg(parse_result, review_result) -> str:
     return "\n".join(parts)
 
 
+def _build_series_chains(col_comps: list, connections: list) -> list[list]:
+    """
+    Group components in a column into ordered series chains using connection topology.
+    Falls back to a single chain (all components assumed in series) when no
+    intra-column connections are present — correct for most safety input circuits.
+    """
+    if not col_comps:
+        return []
+
+    comp_ids  = {str(_g(c, "id", "")).strip() for c in col_comps if _g(c, "id", "")}
+    comp_by_id = {str(_g(c, "id", "")).strip(): c for c in col_comps if _g(c, "id", "")}
+
+    # Intra-column directed edges (exclude feedback/power)
+    nxt: dict[str, str] = {}
+    for conn in connections:
+        fid = str(_g(conn, "from_id", "")).strip()
+        tid = str(_g(conn, "to_id",   "")).strip()
+        wt  = str(_g(conn, "wire_type", "control")).lower()
+        if fid in comp_ids and tid in comp_ids and wt not in ("feedback", "power"):
+            nxt[fid] = tid
+
+    if not nxt:
+        # No intra-column connections — assume single series chain
+        return [list(col_comps)]
+
+    # Build chains: start from nodes with no in-edge within this column
+    in_targets = set(nxt.values())
+    starts = [str(_g(c, "id", "")).strip() for c in col_comps
+              if str(_g(c, "id", "")).strip() not in in_targets]
+
+    chains: list[list] = []
+    visited: set = set()
+    for start in starts:
+        if start in visited or start not in comp_by_id:
+            continue
+        chain: list = []
+        cur: str | None = start
+        while cur and cur in comp_by_id and cur not in visited:
+            chain.append(comp_by_id[cur])
+            visited.add(cur)
+            cur = nxt.get(cur)
+        if chain:
+            chains.append(chain)
+
+    # Remaining isolated components each become their own single-item chain
+    for c in col_comps:
+        cid = str(_g(c, "id", "")).strip()
+        if cid not in visited and cid in comp_by_id:
+            chains.append([comp_by_id[cid]])
+
+    return chains if chains else [list(col_comps)]
+
+
+def _map_changes_to_connections(connections: list, changes: list) -> dict:
+    """
+    Returns {(from_id, to_id): [change_id, ...]} for connections mentioned in change items.
+    Used to draw redlined wires.
+    """
+    result: dict[tuple, list] = {}
+    for ch in changes:
+        ch_id = _g(ch, "id", 0)
+        desc  = _g(ch, "description", "")
+        desc  = " ".join(desc) if isinstance(desc, list) else str(desc)
+        text  = (desc + " " + str(_g(ch, "action", ""))).upper()
+        for conn in connections:
+            fid = str(_g(conn, "from_id", "") or "").strip()
+            tid = str(_g(conn, "to_id",   "") or "").strip()
+            fp  = str(_g(conn, "from_port", "") or "").strip().upper()
+            tp  = str(_g(conn, "to_port",   "") or "").strip().upper()
+            if not fid or not tid:
+                continue
+            matched = (fid.upper() in text and tid.upper() in text)
+            if not matched and fp and len(fp) >= 2:
+                matched = fp in text and (fid.upper() in text or tid.upper() in text)
+            if not matched and tp and len(tp) >= 2:
+                matched = tp in text and (fid.upper() in text or tid.upper() in text)
+            if matched:
+                key = (fid.lower(), tid.lower())
+                if key not in result:
+                    result[key] = []
+                if ch_id not in result[key]:
+                    result[key].append(ch_id)
+    return result
+
+
 # ── SLD builder ───────────────────────────────────────────────────────────────
 
 def _build_sld_svg(parse_result, review_result) -> str:
     """
     SLD-style diagram using Phase 1 connection topology.
-    Renders power rails, series input chains, bus-routed inter-column wires,
-    and dashed feedback paths.
+    Uses series chain detection, channel labels, bus-routed inter-column wires,
+    redline wire highlighting, and dashed feedback paths.
     """
     components  = list(_g(parse_result, "components",  []))
     connections = list(_g(parse_result, "connections", []))
     changes     = list(_g(review_result, "changes",    []))
 
-    change_by_id = {_g(ch, "id", i): ch for i, ch in enumerate(changes)}
-    renderable   = [c for c in components
-                    if _type_to_col(_g(c, "type", "unknown")) is not None]
-    change_map   = _map_changes_to_components(renderable, changes)
+    change_by_id  = {_g(ch, "id", i): ch for i, ch in enumerate(changes)}
+    renderable    = [c for c in components
+                     if _type_to_col(_g(c, "type", "unknown")) is not None]
+    change_map    = _map_changes_to_components(renderable, changes)
+    conn_redlines = _map_changes_to_connections(connections, changes)
 
+    # Assign components to columns
     cols: list[list] = [[], [], []]
     for comp in renderable:
         col = _type_to_col(_g(comp, "type", "unknown"))
         if col is not None:
             cols[col].append(comp)
 
-    # SLD reserves SLD_RAIL_H above and below the component area
+    # Build series chains per column
+    chains_per_col = [
+        _build_series_chains(cols[0], connections),
+        _build_series_chains(cols[1], connections),
+        _build_series_chains(cols[2], connections),
+    ]
+
+    # SLD Y start — below title + top power rail + column headers
     sld_comp_y0 = TITLE_H + SLD_RAIL_H + 4 + COL_HDR_H + 4
 
-    max_rows    = max((len(c) for c in cols), default=1)
-    available_h = MAX_H - sld_comp_y0 - SLD_RAIL_H - LEGEND_H - 20
-    dyn_row_h   = max(22, available_h // max(max_rows, 1))
-    dyn_box_h   = max(18, dyn_row_h - 4)
-    dyn_box_gap = dyn_row_h - dyn_box_h
+    # Dynamic row height: account for chain gaps in effective row count
+    def _effective_rows(ci: int) -> int:
+        n_comps  = len(cols[ci])
+        n_chains = len(chains_per_col[ci])
+        return max(1, n_comps + max(0, n_chains - 1) * CHAIN_GAP // 22)
 
-    content_h = max_rows * dyn_row_h + 4
-    svg_h = min(MAX_H, max(MIN_H,
-        sld_comp_y0 + content_h + SLD_RAIL_H + LEGEND_H + 20))
+    max_eff_rows = max(_effective_rows(i) for i in range(3))
+    available_h  = MAX_H - sld_comp_y0 - SLD_RAIL_H - LEGEND_H - 20
+    dyn_row_h    = max(22, available_h // max(max_eff_rows, 1))
+    dyn_box_h    = max(18, dyn_row_h - 4)
 
-    # y used for feedback routing — just below the last component row
-    feedback_y = min(
-        sld_comp_y0 + max_rows * dyn_row_h + 6,
-        svg_h - LEGEND_H - SLD_RAIL_H - 10
-    )
+    # Compute component positions using chain-aware layout
+    comp_pos: dict[str, tuple] = {}       # comp_id -> (col_x, y_top, box_h)
+    col_chain_info: list[list[dict]] = [] # per col: [{chain, y_start, y_end}]
 
-    # Component position index {comp_id: (col_x, y_top, box_h)}
-    comp_pos: dict[str, tuple] = {}
-    for ci, col_comps in enumerate(cols):
+    for ci in range(3):
+        chains = chains_per_col[ci]
         cy = sld_comp_y0
-        for comp in col_comps:
-            cid = str(_g(comp, "id", "")).strip()
-            if cid:
-                comp_pos[cid] = (COL_X[ci], cy, dyn_box_h)
-            cy += dyn_row_h
+        chain_info: list[dict] = []
+        for i, chain in enumerate(chains):
+            if i > 0:
+                cy += CHAIN_GAP
+            y_chain_start = cy
+            for comp in chain:
+                cid = str(_g(comp, "id", "")).strip()
+                if cid:
+                    comp_pos[cid] = (COL_X[ci], cy, dyn_box_h)
+                cy += dyn_row_h
+            y_chain_end = cy - dyn_row_h + dyn_box_h
+            chain_info.append({"chain": chain, "y_start": y_chain_start,
+                                "y_end": y_chain_end})
+        col_chain_info.append(chain_info)
 
-    # Partition connections
+    # SVG height derived from actual layout extent
+    max_y = max((pos[1] + pos[2] for pos in comp_pos.values()),
+                default=sld_comp_y0 + 100)
+    svg_h = min(MAX_H, max(MIN_H, max_y + SLD_RAIL_H + LEGEND_H + 25))
+
+    # Feedback routing Y — below all components, above bottom rail
+    feedback_y = min(max_y + 6, svg_h - LEGEND_H - SLD_RAIL_H - 10)
+
+    # Partition connections by wire_type
     safety_conns   = [c for c in connections
                       if _g(c, "wire_type", "control") in ("safety", "control")]
     feedback_conns = [c for c in connections
@@ -683,14 +794,14 @@ def _build_sld_svg(parse_result, review_result) -> str:
 
     parts = []
 
-    # SVG root
+    # ── SVG root ──────────────────────────────────────────────────────────────
     parts.append(
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {SVG_W} {svg_h}" width="{SVG_W}" height="{svg_h}">'
     )
     parts.append(f'<rect width="{SVG_W}" height="{svg_h}" fill="{C_WHITE}"/>')
 
-    # Title bar
+    # ── Title bar ─────────────────────────────────────────────────────────────
     parts.append(f'<rect x="0" y="0" width="{SVG_W}" height="{TITLE_H}" fill="{C_NAVY}"/>')
     parts.append(f'<rect x="0" y="{TITLE_H - 4}" width="{SVG_W}" height="4" fill="{C_LIME}"/>')
     parts.append(
@@ -704,35 +815,69 @@ def _build_sld_svg(parse_result, review_result) -> str:
         f'Redline annotations correspond to numbered change items in the review report</text>'
     )
 
-    # Top power rail
+    # ── Top power rail (+24VDC) ───────────────────────────────────────────────
     parts.append(_draw_power_rail(TITLE_H + 2, "+24VDC"))
 
-    # Column headers (SLD labels)
+    # ── Column headers (SLD labels) ───────────────────────────────────────────
     hdr_y = TITLE_H + SLD_RAIL_H + 4
     for ci, lbl in enumerate(SLD_COL_LABELS):
         parts.append(
-            f'<rect x="{COL_X[ci]}" y="{hdr_y}" width="{BOX_W}" height="{COL_HDR_H - 4}" '
-            f'rx="3" fill="{C_NAVY}"/>'
+            f'<rect x="{COL_X[ci]}" y="{hdr_y}" width="{BOX_W}" '
+            f'height="{COL_HDR_H - 4}" rx="3" fill="{C_NAVY}"/>'
             f'<text x="{COL_X[ci] + BOX_W // 2}" y="{hdr_y + 12}" '
             f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" '
-            f'font-weight="bold" fill="{C_WHITE}" text-anchor="middle">{_xe(lbl)}</text>'
+            f'font-weight="bold" fill="{C_WHITE}" text-anchor="middle">'
+            f'{_xe(lbl)}</text>'
         )
 
-    # ── Series wires within input column (inputs are always in series) ─────────
-    if len(cols[0]) > 1:
-        cx_ctr = COL_X[0] + BOX_W // 2
-        cy = sld_comp_y0
-        for _ in range(len(cols[0]) - 1):
-            y_bot = cy + dyn_box_h
-            y_nxt = cy + dyn_row_h
-            parts.append(
-                f'<line x1="{cx_ctr}" y1="{y_bot}" x2="{cx_ctr}" y2="{y_nxt}" '
-                f'stroke="{C_NAVY}" stroke-width="1.3"/>'
-            )
-            # Node dot at midpoint of gap
-            y_mid = (y_bot + y_nxt) // 2
-            parts.append(f'<circle cx="{cx_ctr}" cy="{y_mid}" r="1.5" fill="{C_NAVY}"/>')
-            cy += dyn_row_h
+    # ── Series wires within each chain ────────────────────────────────────────
+    for ci in range(3):
+        cx_ctr = COL_X[ci] + BOX_W // 2
+        for chain_d in col_chain_info[ci]:
+            chain = chain_d["chain"]
+            for j in range(len(chain) - 1):
+                cid1 = str(_g(chain[j],     "id", "")).strip()
+                cid2 = str(_g(chain[j + 1], "id", "")).strip()
+                if cid1 in comp_pos and cid2 in comp_pos:
+                    y1 = comp_pos[cid1][1] + dyn_box_h
+                    y2 = comp_pos[cid2][1]
+                    if y2 > y1:
+                        parts.append(
+                            f'<line x1="{cx_ctr}" y1="{y1}" x2="{cx_ctr}" y2="{y2}" '
+                            f'stroke="{C_NAVY}" stroke-width="1.3"/>'
+                        )
+                        y_mid = (y1 + y2) // 2
+                        parts.append(
+                            f'<circle cx="{cx_ctr}" cy="{y_mid}" r="1.5" fill="{C_NAVY}"/>'
+                        )
+
+    # ── Chain separator lines between unrelated groups in same column ──────────
+    for ci in range(3):
+        if len(col_chain_info[ci]) > 1:
+            for i in range(len(col_chain_info[ci]) - 1):
+                y_end   = col_chain_info[ci][i]["y_end"]
+                y_start = col_chain_info[ci][i + 1]["y_start"]
+                y_sep   = (y_end + y_start) // 2
+                parts.append(
+                    f'<line x1="{COL_X[ci] + 8}" y1="{y_sep}" '
+                    f'x2="{COL_X[ci] + BOX_W - 8}" y2="{y_sep}" '
+                    f'stroke="{C_GREY}" stroke-width="0.5" '
+                    f'stroke-dasharray="3,2" opacity="0.55"/>'
+                )
+
+    # ── Channel labels on input column ────────────────────────────────────────
+    for chain_d in col_chain_info[0]:
+        if chain_d["chain"]:
+            ch_label = str(_g(chain_d["chain"][0], "channel", "") or "")
+            if ch_label:
+                first_cid = str(_g(chain_d["chain"][0], "id", "")).strip()
+                if first_cid in comp_pos:
+                    _, cy_ch, _ = comp_pos[first_cid]
+                    parts.append(
+                        f'<text x="{COL_X[0] + BOX_W + 3}" y="{cy_ch + 8}" '
+                        f'font-family="Helvetica,Arial,sans-serif" font-size="6" '
+                        f'font-weight="bold" fill="{C_NAVY2}">{_xe(ch_label)}</text>'
+                    )
 
     # ── Inter-column bus wires ─────────────────────────────────────────────────
     for from_col, to_col in [(0, 1), (1, 2)]:
@@ -748,61 +893,74 @@ def _build_sld_svg(parse_result, review_result) -> str:
 
         if lane_conns:
             src_ys = [comp_pos[_g(c, "from_id", "")][1] + dyn_box_h // 2
-                      for c in lane_conns]
-            bus_y1 = min(src_ys) - 2
-            bus_y2 = max(src_ys) + 2
+                      for c in lane_conns if _g(c, "from_id", "") in comp_pos]
+            if src_ys:
+                bus_y1 = min(src_ys) - 2
+                bus_y2 = max(src_ys) + 2
+                # Vertical bus line
+                parts.append(
+                    f'<line x1="{bus_x}" y1="{bus_y1}" x2="{bus_x}" y2="{bus_y2}" '
+                    f'stroke="{C_NAVY}" stroke-width="1.8"/>'
+                )
 
-            # Vertical bus line
-            parts.append(
-                f'<line x1="{bus_x}" y1="{bus_y1}" x2="{bus_x}" y2="{bus_y2}" '
-                f'stroke="{C_NAVY}" stroke-width="1.8"/>'
-            )
-
-            # Stubs: source right edge → bus
-            seen_src: set = set()
-            for conn in lane_conns:
-                fid = _g(conn, "from_id", "")
-                fp  = str(_g(conn, "from_port", "") or "")
-                if fid in comp_pos and fid not in seen_src:
-                    fy  = comp_pos[fid][1] + dyn_box_h // 2
-                    sx  = COL_X[from_col] + BOX_W
-                    parts.append(
-                        f'<line x1="{sx}" y1="{fy}" x2="{bus_x}" y2="{fy}" '
-                        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
-                    )
-                    if fp:
+                # Source stubs: right edge of source → bus
+                seen_src: set = set()
+                for conn in lane_conns:
+                    fid = _g(conn, "from_id", "")
+                    tid = _g(conn, "to_id", "")
+                    fp  = str(_g(conn, "from_port", "") or "")
+                    key = (str(fid).lower(), str(tid).lower())
+                    is_rl  = key in conn_redlines
+                    w_col  = C_RED  if is_rl else C_NAVY
+                    w_w    = "1.6"  if is_rl else "1.2"
+                    if fid in comp_pos and fid not in seen_src:
+                        fy = comp_pos[fid][1] + dyn_box_h // 2
+                        sx = COL_X[from_col] + BOX_W
+                        dash = 'stroke-dasharray="4,2"' if is_rl else ""
                         parts.append(
-                            f'<text x="{sx + 2}" y="{fy - 2}" '
-                            f'font-family="Helvetica,Arial,sans-serif" font-size="5.5" '
-                            f'fill="{C_GREY}">{_xe(fp)}</text>'
+                            f'<line x1="{sx}" y1="{fy}" x2="{bus_x}" y2="{fy}" '
+                            f'stroke="{w_col}" stroke-width="{w_w}" {dash}/>'
                         )
-                    seen_src.add(fid)
+                        if fp:
+                            parts.append(
+                                f'<text x="{sx + 2}" y="{fy - 2}" '
+                                f'font-family="Helvetica,Arial,sans-serif" '
+                                f'font-size="5.5" fill="{C_GREY}">{_xe(fp)}</text>'
+                            )
+                        seen_src.add(fid)
 
-            # Wires: bus → target left edge with arrowhead
-            seen_tgt: set = set()
-            for conn in lane_conns:
-                tid = _g(conn, "to_id",   "")
-                tp  = str(_g(conn, "to_port", "") or "")
-                if tid in comp_pos and tid not in seen_tgt:
-                    ty  = comp_pos[tid][1] + dyn_box_h // 2
-                    tx  = COL_X[to_col]
-                    parts.append(
-                        f'<line x1="{bus_x}" y1="{ty}" x2="{tx}" y2="{ty}" '
-                        f'stroke="{C_NAVY}" stroke-width="1.2"/>'
-                    )
-                    parts.append(
-                        f'<polygon points="{tx},{ty} {tx-7},{ty-3} {tx-7},{ty+3}" '
-                        f'fill="{C_NAVY2}"/>'
-                    )
-                    if tp:
+                # Target wires: bus → left edge of target with arrowhead
+                seen_tgt: set = set()
+                for conn in lane_conns:
+                    fid = _g(conn, "from_id", "")
+                    tid = _g(conn, "to_id",   "")
+                    tp  = str(_g(conn, "to_port", "") or "")
+                    key = (str(fid).lower(), str(tid).lower())
+                    is_rl  = key in conn_redlines
+                    w_col  = C_RED  if is_rl else C_NAVY
+                    w_w    = "1.6"  if is_rl else "1.2"
+                    arr_col = C_RED if is_rl else C_NAVY2
+                    if tid in comp_pos and tid not in seen_tgt:
+                        ty = comp_pos[tid][1] + dyn_box_h // 2
+                        tx = COL_X[to_col]
+                        dash = 'stroke-dasharray="4,2"' if is_rl else ""
                         parts.append(
-                            f'<text x="{bus_x + 2}" y="{ty - 2}" '
-                            f'font-family="Helvetica,Arial,sans-serif" font-size="5.5" '
-                            f'fill="{C_GREY}">{_xe(tp)}</text>'
+                            f'<line x1="{bus_x}" y1="{ty}" x2="{tx}" y2="{ty}" '
+                            f'stroke="{w_col}" stroke-width="{w_w}" {dash}/>'
                         )
-                    seen_tgt.add(tid)
+                        parts.append(
+                            f'<polygon points="{tx},{ty} {tx-7},{ty-3} {tx-7},{ty+3}" '
+                            f'fill="{arr_col}"/>'
+                        )
+                        if tp:
+                            parts.append(
+                                f'<text x="{bus_x + 2}" y="{ty - 2}" '
+                                f'font-family="Helvetica,Arial,sans-serif" '
+                                f'font-size="5.5" fill="{C_GREY}">{_xe(tp)}</text>'
+                            )
+                        seen_tgt.add(tid)
         else:
-            # Fallback: single midpoint arrow
+            # Fallback: single midpoint arrow when no connection data
             arrow_y = (sld_comp_y0 + (len(cols[from_col]) * dyn_row_h) // 2 + dyn_box_h // 2
                        if cols[from_col] else sld_comp_y0 + dyn_box_h // 2)
             parts.append(_draw_connection_arrow(
@@ -826,28 +984,28 @@ def _build_sld_svg(parse_result, review_result) -> str:
                 f'fill="none" stroke="{C_AMBER}" stroke-width="1.1" '
                 f'stroke-dasharray="4,3" opacity="0.9"/>'
             )
-            # Upward arrowhead into target bottom
             ay = ty + th
             parts.append(
                 f'<polygon points="{tgt_cx},{ay} {tgt_cx-3},{ay+7} {tgt_cx+3},{ay+7}" '
                 f'fill="{C_AMBER}" opacity="0.9"/>'
             )
 
-    # ── Components (drawn on top of wires) ─────────────────────────────────────
-    for ci, col_comps in enumerate(cols):
-        cy = sld_comp_y0
-        for comp in col_comps:
-            cid    = str(_g(comp, "id", "")).strip()
-            ch_ids = change_map.get(cid, [])
-            parts.append(_draw_component_box(comp, COL_X[ci], cy, ch_ids, change_by_id,
-                                             box_h=dyn_box_h))
-            cy += dyn_row_h
+    # ── Components (drawn on top of all wires) ─────────────────────────────────
+    for ci in range(3):
+        for chain_d in col_chain_info[ci]:
+            for comp in chain_d["chain"]:
+                cid    = str(_g(comp, "id", "")).strip()
+                ch_ids = change_map.get(cid, [])
+                if cid in comp_pos:
+                    x, y, bh = comp_pos[cid]
+                    parts.append(_draw_component_box(comp, x, y, ch_ids, change_by_id,
+                                                     box_h=bh))
 
-    # Bottom power rail
+    # ── Bottom power rail (0VDC) ──────────────────────────────────────────────
     bot_rail_y = svg_h - LEGEND_H - SLD_RAIL_H - 4
     parts.append(_draw_power_rail(bot_rail_y, "0VDC"))
 
-    # Legend
+    # ── Legend ────────────────────────────────────────────────────────────────
     leg_y = svg_h - LEGEND_H + 4
     parts.append(
         f'<rect x="0" y="{leg_y - 4}" width="{SVG_W}" height="{LEGEND_H}" fill="{C_LGREY}"/>'
