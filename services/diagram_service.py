@@ -32,7 +32,7 @@ TITLE_H    = 52                   # height of title / header area
 COL_HDR_H  = 28                   # column header strip height
 LEGEND_H   = 36                   # legend strip at bottom
 MIN_H      = 320
-MAX_H      = 620      # cap height so it always fits on one A4 page at full width
+MAX_H      = 900      # tall enough for ladder diagrams; export_service scales to fit page
 
 BADGE_R    = 9                    # redline circled-number radius
 
@@ -54,17 +54,25 @@ COLUMN_LABELS = [
     "OUTPUTS / PLC / CONTACTORS",
 ]
 
-# ── SLD-specific constants ─────────────────────────────────────────────────────
-SLD_RAIL_H  = 11    # height of power rail stripe
-SLD_BUS_OFS = 13    # horizontal offset from col right edge to inter-col bus line
+# ── SLD-specific constants (legacy block diagram) ─────────────────────────────
+SLD_RAIL_H  = 11
+SLD_BUS_OFS = 13
+SLD_COL_LABELS = ["SAFETY INPUTS", "SAFETY RELAY / PLC", "OUTPUT CONTACTS"]
+CHAIN_GAP = 14
 
-SLD_COL_LABELS = [
-    "SAFETY INPUTS",
-    "SAFETY RELAY / PLC",
-    "OUTPUT CONTACTS",
-]
-
-CHAIN_GAP = 14   # extra vertical pixels between unrelated series chains in same column
+# ── Ladder diagram constants ───────────────────────────────────────────────────
+LDR_L_X          = 24      # left power rail x
+LDR_R_X          = 476     # right power rail x
+LDR_RUNG_PITCH   = 48      # base vertical pitch between rungs
+LDR_SECTION_GAP  = 22      # extra y before each section's first rung
+LDR_CONTACT_PITCH = 36     # horizontal pitch per inline contact
+LDR_CW           = 7       # contact bar half-width
+LDR_CH           = 9       # contact bar half-height
+LDR_COIL_R       = 11      # output coil circle radius
+LDR_COIL_BW      = 24      # coil box half-width (relay/PLC rectangle)
+LDR_COIL_BH      = 16      # coil box height
+LDR_COIL_CX      = 444     # coil symbol centre x  (LDR_R_X - LDR_COIL_BW - 8)
+LDR_LBL_FS       = 6.5     # inline label font size
 
 # Maps ParsedComponent.type -> column index (None = skip / don't render)
 TYPE_TO_COL = {
@@ -477,6 +485,196 @@ def _draw_power_rail(y: int, label: str) -> str:
     )
 
 
+# ── Ladder inline symbol helpers ──────────────────────────────────────────────
+# All symbols are drawn CENTRED on the rung wire at (cx, wy).
+# The rung wire passes through the symbol; bars create the visual break.
+
+def _ldr_nc(cx: int, wy: int, col: str = C_NAVY) -> str:
+    """IEC NC contact: two vertical bars + diagonal crossing."""
+    w, h = LDR_CW, LDR_CH
+    return (
+        f'<line x1="{cx-w}" y1="{wy-h}" x2="{cx-w}" y2="{wy+h}" stroke="{col}" stroke-width="1.6"/>'
+        f'<line x1="{cx+w}" y1="{wy-h}" x2="{cx+w}" y2="{wy+h}" stroke="{col}" stroke-width="1.6"/>'
+        f'<line x1="{cx-w}" y1="{wy-4}" x2="{cx+w}" y2="{wy+4}" stroke="{col}" stroke-width="1.2"/>'
+    )
+
+
+def _ldr_no(cx: int, wy: int, col: str = C_NAVY) -> str:
+    """IEC NO contact: two vertical bars, no diagonal."""
+    w, h = LDR_CW, LDR_CH
+    return (
+        f'<line x1="{cx-w}" y1="{wy-h}" x2="{cx-w}" y2="{wy+h}" stroke="{col}" stroke-width="1.6"/>'
+        f'<line x1="{cx+w}" y1="{wy-h}" x2="{cx+w}" y2="{wy+h}" stroke="{col}" stroke-width="1.6"/>'
+    )
+
+
+def _ldr_estop_sym(cx: int, wy: int, col: str = C_NAVY) -> str:
+    """E-stop: mushroom cap above + NC contact on wire."""
+    h = LDR_CH
+    return (
+        f'<ellipse cx="{cx}" cy="{wy-h-9}" rx="8" ry="4" fill="{C_RED}" stroke="#8B0000" stroke-width="0.8"/>'
+        f'<line x1="{cx}" y1="{wy-h-5}" x2="{cx}" y2="{wy-h}" stroke="#555" stroke-width="2"/>'
+        + _ldr_nc(cx, wy, col)
+    )
+
+
+def _ldr_lc_sym(cx: int, wy: int, col: str = C_NAVY) -> str:
+    """Light curtain inline: two vertical bars with dashed beams."""
+    h = LDR_CH
+    return (
+        f'<rect x="{cx-12}" y="{wy-h}" width="3" height="{h*2}" rx="1" fill="{col}"/>'
+        f'<rect x="{cx+9}"  y="{wy-h}" width="3" height="{h*2}" rx="1" fill="{C_NAVY2}"/>'
+        f'<line x1="{cx-9}" y1="{wy-3}" x2="{cx+9}" y2="{wy-3}" stroke="{C_LIME}" stroke-width="0.9" stroke-dasharray="2,1.5"/>'
+        f'<line x1="{cx-9}" y1="{wy+3}" x2="{cx+9}" y2="{wy+3}" stroke="{C_LIME}" stroke-width="0.9" stroke-dasharray="2,1.5"/>'
+    )
+
+
+def _ldr_scanner_sym(cx: int, wy: int, col: str = C_NAVY) -> str:
+    """Scanner inline: small fan-sector symbol."""
+    h = LDR_CH
+    return (
+        f'<circle cx="{cx}" cy="{wy+3}" r="4" fill="{col}"/>'
+        f'<line x1="{cx}" y1="{wy+3}" x2="{cx-8}" y2="{wy-h}" stroke="{C_LIME}" stroke-width="1"/>'
+        f'<line x1="{cx}" y1="{wy+3}" x2="{cx+8}" y2="{wy-h}" stroke="{C_LIME}" stroke-width="1"/>'
+    )
+
+
+def _ldr_sym_for_comp(comp, cx: int, wy: int, redline: bool = False) -> str:
+    """Dispatch to the correct inline contact symbol by component type."""
+    col = C_RED if redline else C_NAVY
+    typ = _g(comp, 'type', 'unknown')
+    val = typ.value if hasattr(typ, 'value') else str(typ).lower()
+    if   val == 'estop':          return _ldr_estop_sym(cx, wy, col)
+    elif val == 'light_curtain':  return _ldr_lc_sym(cx, wy, col)
+    elif val == 'scanner':        return _ldr_scanner_sym(cx, wy, col)
+    elif val in ('safety_relay', 'safety_plc'):
+        return _ldr_no(cx, wy, col)   # relay used as contact → NO
+    else:
+        return _ldr_nc(cx, wy, col)
+
+
+def _ldr_coil_for_comp(comp, cx: int, wy: int, redline: bool = False) -> str:
+    """Coil symbol at right end of rung, dispatched by component type."""
+    col  = C_RED if redline else C_NAVY
+    fill = '#FFF5F5' if redline else 'none'
+    label = _trunc(str(_g(comp, 'id', '?')), 9)
+    typ = _g(comp, 'type', 'unknown')
+    val = typ.value if hasattr(typ, 'value') else str(typ).lower()
+    bw, bh, r = LDR_COIL_BW, LDR_COIL_BH, LDR_COIL_R
+    if val in ('safety_relay', 'safety_plc'):
+        # IEC relay coil: rectangle
+        return (
+            f'<rect x="{cx-bw}" y="{wy-bh//2}" width="{bw*2}" height="{bh}" rx="2" '
+            f'fill="{fill}" stroke="{col}" stroke-width="1.5"/>'
+            f'<text x="{cx}" y="{wy+4}" font-family="Helvetica,Arial,sans-serif" '
+            f'font-size="6.5" font-weight="bold" fill="{col}" text-anchor="middle">{_xe(label)}</text>'
+        )
+    else:
+        # IEC contactor/output coil: circle
+        return (
+            f'<circle cx="{cx}" cy="{wy}" r="{r}" fill="{fill}" stroke="{col}" stroke-width="1.5"/>'
+            f'<text x="{cx}" y="{wy+3}" font-family="Helvetica,Arial,sans-serif" '
+            f'font-size="6" font-weight="bold" fill="{col}" text-anchor="middle">{_xe(label)}</text>'
+        )
+
+
+def _build_rungs_for_ladder(components: list, connections: list, changes: list) -> list:
+    """
+    Convert component list and connection topology into an ordered list of ladder rungs.
+    Each rung: {'contacts': [comp,...], 'coil': comp|None, 'nc': bool, 'section': str}
+    """
+    col0 = [c for c in components if _type_to_col(_g(c, 'type', 'unknown')) == 0]
+    col1 = [c for c in components if _type_to_col(_g(c, 'type', 'unknown')) == 1]
+    col2 = [c for c in components if _type_to_col(_g(c, 'type', 'unknown')) == 2]
+
+    comp_by_id = {str(_g(c, 'id', '')).strip(): c for c in components}
+    col0_ids   = {str(_g(c, 'id', '')).strip() for c in col0}
+    col1_ids   = {str(_g(c, 'id', '')).strip() for c in col1}
+    col2_ids   = {str(_g(c, 'id', '')).strip() for c in col2}
+
+    # Directed adjacency from connections (ignore feedback/power)
+    relay_inputs:  dict = defaultdict(list)   # relay_id → [input_ids]
+    relay_outputs: dict = defaultdict(list)   # relay_id → [output_ids]
+
+    for conn in connections:
+        fid = str(_g(conn, 'from_id', '')).strip()
+        tid = str(_g(conn, 'to_id',   '')).strip()
+        wt  = str(_g(conn, 'wire_type', 'control')).lower()
+        if wt in ('feedback', 'power'):
+            continue
+        if fid in col0_ids and tid in col1_ids:
+            if fid not in relay_inputs[tid]:
+                relay_inputs[tid].append(fid)
+        elif fid in col1_ids and tid in col2_ids:
+            if tid not in relay_outputs[fid]:
+                relay_outputs[fid].append(tid)
+
+    rungs: list = []
+    placed_inputs  = set()
+    placed_relays  = set()
+    placed_outputs = set()
+
+    # ── Input rungs: one per relay that receives safety inputs ────────────────
+    first_in = True
+    for relay_id, inp_ids in relay_inputs.items():
+        relay_comp = comp_by_id.get(relay_id)
+        contacts   = [comp_by_id[i] for i in inp_ids if i in comp_by_id]
+        placed_inputs.update(inp_ids)
+        placed_relays.add(relay_id)
+        rungs.append({'contacts': contacts, 'coil': relay_comp, 'nc': True,
+                      'section': 'SAFETY INPUT CHAIN' if first_in else ''})
+        first_in = False
+
+    # Unconnected col0 → group by series_group/channel, pair with remaining col1
+    leftover_in = [c for c in col0 if str(_g(c, 'id', '')).strip() not in placed_inputs]
+    if leftover_in:
+        groups: dict = defaultdict(list)
+        for c in leftover_in:
+            sg = str(_g(c, 'series_group', '') or '')
+            ch = str(_g(c, 'channel',      '') or '')
+            groups[sg if sg else (ch if ch else '__all__')].append(c)
+        for gi, (_, comps) in enumerate(groups.items()):
+            idx  = len(placed_relays)
+            coil = col1[idx] if idx < len(col1) else None
+            if coil:
+                placed_relays.add(str(_g(coil, 'id', '')).strip())
+            rungs.append({'contacts': comps, 'coil': coil, 'nc': True,
+                          'section': 'SAFETY INPUT CHAIN' if first_in else ''})
+            first_in = False
+
+    # Unconnected col1 relays (no inputs mapped to them)
+    for c in col1:
+        cid = str(_g(c, 'id', '')).strip()
+        if cid not in placed_relays:
+            rungs.append({'contacts': [], 'coil': c, 'nc': True,
+                          'section': 'SAFETY INPUT CHAIN' if first_in else ''})
+            placed_relays.add(cid)
+            first_in = False
+
+    # ── Output rungs: one per output connected via relay topology ────────────
+    first_out = True
+    for relay_id, out_ids in relay_outputs.items():
+        relay_comp = comp_by_id.get(relay_id)
+        for out_id in out_ids:
+            out_comp = comp_by_id.get(out_id)
+            if out_comp:
+                placed_outputs.add(out_id)
+                rungs.append({'contacts': [relay_comp] if relay_comp else [],
+                              'coil': out_comp, 'nc': False,
+                              'section': 'OUTPUT CONTACTS' if first_out else ''})
+                first_out = False
+
+    # Remaining col2 outputs not matched by any connection
+    for c in col2:
+        cid = str(_g(c, 'id', '')).strip()
+        if cid not in placed_outputs:
+            rungs.append({'contacts': [], 'coil': c, 'nc': True,
+                          'section': 'OUTPUT CONTACTS' if first_out else ''})
+            first_out = False
+
+    return rungs
+
+
 # ── Main SVG builder ───────────────────────────────────────────────────────────
 
 def _build_block_svg(parse_result, review_result) -> str:
@@ -710,91 +908,45 @@ def _map_changes_to_connections(connections: list, changes: list) -> dict:
     return result
 
 
-# ── SLD builder ───────────────────────────────────────────────────────────────
+# ── Ladder SLD builder ────────────────────────────────────────────────────────
 
 def _build_sld_svg(parse_result, review_result) -> str:
     """
-    SLD-style diagram using Phase 1 connection topology.
-    Uses series chain detection, channel labels, bus-routed inter-column wires,
-    redline wire highlighting, and dashed feedback paths.
+    Ladder-style SLD: left/right vertical power rails, horizontal rungs with
+    inline IEC contact symbols (NC/NO) and output coil symbols.
+    Redlined rungs draw in red/dashed; numbered badges mark each finding.
     """
     components  = list(_g(parse_result, "components",  []))
     connections = list(_g(parse_result, "connections", []))
     changes     = list(_g(review_result, "changes",    []))
 
-    change_by_id  = {_g(ch, "id", i): ch for i, ch in enumerate(changes)}
-    renderable    = [c for c in components
-                     if _type_to_col(_g(c, "type", "unknown")) is not None]
-    change_map    = _map_changes_to_components(renderable, changes)
-    conn_redlines = _map_changes_to_connections(connections, changes)
+    change_by_id = {_g(ch, "id", i): ch for i, ch in enumerate(changes)}
+    renderable   = [c for c in components if _type_to_col(_g(c, "type", "unknown")) is not None]
+    change_map   = _map_changes_to_components(renderable, changes)
 
-    # Assign components to columns
-    cols: list[list] = [[], [], []]
-    for comp in renderable:
-        col = _type_to_col(_g(comp, "type", "unknown"))
-        if col is not None:
-            cols[col].append(comp)
+    rungs = _build_rungs_for_ladder(renderable, connections, changes)
 
-    # Build series chains per column
-    chains_per_col = [
-        _build_series_chains(cols[0], connections),
-        _build_series_chains(cols[1], connections),
-        _build_series_chains(cols[2], connections),
-    ]
+    # ── Dynamic rung pitch ─────────────────────────────────────────────────────
+    n_secs   = sum(1 for r in rungs if r.get("section"))
+    overhead = TITLE_H + 28 + n_secs * LDR_SECTION_GAP + LEGEND_H + 20
+    pitch    = max(32, min(LDR_RUNG_PITCH, (MAX_H - overhead) // max(len(rungs), 1)))
 
-    # SLD Y start — below title + top power rail + column headers
-    sld_comp_y0 = TITLE_H + SLD_RAIL_H + 4 + COL_HDR_H + 4
+    # ── Rung Y positions ───────────────────────────────────────────────────────
+    rung_ys: list[int] = []
+    cur_y = TITLE_H + 28
+    for r in rungs:
+        if r.get("section"):
+            cur_y += LDR_SECTION_GAP
+        rung_ys.append(cur_y)
+        cur_y += pitch
 
-    # Dynamic row height: account for chain gaps in effective row count
-    def _effective_rows(ci: int) -> int:
-        n_comps  = len(cols[ci])
-        n_chains = len(chains_per_col[ci])
-        return max(1, n_comps + max(0, n_chains - 1) * CHAIN_GAP // 22)
+    svg_h    = min(MAX_H, max(MIN_H, cur_y + LEGEND_H + 16))
+    rail_top = rung_ys[0]  if rung_ys else TITLE_H + 28
+    rail_bot = rung_ys[-1] if rung_ys else svg_h - LEGEND_H - 16
 
-    max_eff_rows = max(_effective_rows(i) for i in range(3))
-    available_h  = MAX_H - sld_comp_y0 - SLD_RAIL_H - LEGEND_H - 20
-    dyn_row_h    = max(22, available_h // max(max_eff_rows, 1))
-    dyn_box_h    = max(18, dyn_row_h - 4)
+    parts: list[str] = []
 
-    # Compute component positions using chain-aware layout
-    comp_pos: dict[str, tuple] = {}       # comp_id -> (col_x, y_top, box_h)
-    col_chain_info: list[list[dict]] = [] # per col: [{chain, y_start, y_end}]
-
-    for ci in range(3):
-        chains = chains_per_col[ci]
-        cy = sld_comp_y0
-        chain_info: list[dict] = []
-        for i, chain in enumerate(chains):
-            if i > 0:
-                cy += CHAIN_GAP
-            y_chain_start = cy
-            for comp in chain:
-                cid = str(_g(comp, "id", "")).strip()
-                if cid:
-                    comp_pos[cid] = (COL_X[ci], cy, dyn_box_h)
-                cy += dyn_row_h
-            y_chain_end = cy - dyn_row_h + dyn_box_h
-            chain_info.append({"chain": chain, "y_start": y_chain_start,
-                                "y_end": y_chain_end})
-        col_chain_info.append(chain_info)
-
-    # SVG height derived from actual layout extent
-    max_y = max((pos[1] + pos[2] for pos in comp_pos.values()),
-                default=sld_comp_y0 + 100)
-    svg_h = min(MAX_H, max(MIN_H, max_y + SLD_RAIL_H + LEGEND_H + 25))
-
-    # Feedback routing Y — below all components, above bottom rail
-    feedback_y = min(max_y + 6, svg_h - LEGEND_H - SLD_RAIL_H - 10)
-
-    # Partition connections by wire_type
-    safety_conns   = [c for c in connections
-                      if _g(c, "wire_type", "control") in ("safety", "control")]
-    feedback_conns = [c for c in connections
-                      if _g(c, "wire_type", "") == "feedback"]
-
-    parts = []
-
-    # ── SVG root ──────────────────────────────────────────────────────────────
+    # ── SVG root + background ─────────────────────────────────────────────────
     parts.append(
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {SVG_W} {svg_h}" width="{SVG_W}" height="{svg_h}">'
@@ -805,262 +957,213 @@ def _build_sld_svg(parse_result, review_result) -> str:
     parts.append(f'<rect x="0" y="0" width="{SVG_W}" height="{TITLE_H}" fill="{C_NAVY}"/>')
     parts.append(f'<rect x="0" y="{TITLE_H - 4}" width="{SVG_W}" height="4" fill="{C_LIME}"/>')
     parts.append(
-        f'<text x="10" y="22" font-family="Helvetica,Arial,sans-serif" '
-        f'font-size="11" font-weight="bold" fill="{C_WHITE}">'
-        f'Safety Circuit Schematic \u2014 Redline Review</text>'
+        f'<text x="10" y="22" font-family="Helvetica,Arial,sans-serif" font-size="11" '
+        f'font-weight="bold" fill="{C_WHITE}">Safety Circuit Schematic \u2014 Redline Review</text>'
     )
     parts.append(
-        f'<text x="10" y="38" font-family="Helvetica,Arial,sans-serif" '
-        f'font-size="7.5" fill="#AEB6BF">MEX Engineering Group \u00b7 '
-        f'Redline annotations correspond to numbered change items in the review report</text>'
+        f'<text x="10" y="38" font-family="Helvetica,Arial,sans-serif" font-size="7.5" '
+        f'fill="#AEB6BF">MEX Engineering Group \u00b7 Redline annotations correspond to '
+        f'numbered change items in the review report</text>'
     )
 
-    # ── Top power rail (+24VDC) ───────────────────────────────────────────────
-    parts.append(_draw_power_rail(TITLE_H + 2, "+24VDC"))
+    # ── Power rail labels ─────────────────────────────────────────────────────
+    parts.append(
+        f'<text x="{LDR_L_X + 1}" y="{rail_top - 5}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="7" font-weight="bold" fill="{C_NAVY}">+24VDC</text>'
+    )
+    parts.append(
+        f'<text x="{LDR_L_X + 1}" y="{rail_bot + 14}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="7" font-weight="bold" fill="{C_NAVY}">0VDC</text>'
+    )
 
-    # ── Column headers (SLD labels) ───────────────────────────────────────────
-    hdr_y = TITLE_H + SLD_RAIL_H + 4
-    for ci, lbl in enumerate(SLD_COL_LABELS):
-        parts.append(
-            f'<rect x="{COL_X[ci]}" y="{hdr_y}" width="{BOX_W}" '
-            f'height="{COL_HDR_H - 4}" rx="3" fill="{C_NAVY}"/>'
-            f'<text x="{COL_X[ci] + BOX_W // 2}" y="{hdr_y + 12}" '
-            f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" '
-            f'font-weight="bold" fill="{C_WHITE}" text-anchor="middle">'
-            f'{_xe(lbl)}</text>'
-        )
+    # ── Vertical power rails ──────────────────────────────────────────────────
+    parts.append(
+        f'<line x1="{LDR_L_X}" y1="{rail_top}" x2="{LDR_L_X}" y2="{rail_bot}" '
+        f'stroke="{C_NAVY}" stroke-width="3"/>'
+    )
+    parts.append(
+        f'<line x1="{LDR_R_X}" y1="{rail_top}" x2="{LDR_R_X}" y2="{rail_bot}" '
+        f'stroke="{C_NAVY}" stroke-width="3"/>'
+    )
 
-    # ── Series wires within each chain ────────────────────────────────────────
-    for ci in range(3):
-        cx_ctr = COL_X[ci] + BOX_W // 2
-        for chain_d in col_chain_info[ci]:
-            chain = chain_d["chain"]
-            for j in range(len(chain) - 1):
-                cid1 = str(_g(chain[j],     "id", "")).strip()
-                cid2 = str(_g(chain[j + 1], "id", "")).strip()
-                if cid1 in comp_pos and cid2 in comp_pos:
-                    y1 = comp_pos[cid1][1] + dyn_box_h
-                    y2 = comp_pos[cid2][1]
-                    if y2 > y1:
-                        parts.append(
-                            f'<line x1="{cx_ctr}" y1="{y1}" x2="{cx_ctr}" y2="{y2}" '
-                            f'stroke="{C_NAVY}" stroke-width="1.3"/>'
-                        )
-                        y_mid = (y1 + y2) // 2
-                        parts.append(
-                            f'<circle cx="{cx_ctr}" cy="{y_mid}" r="1.5" fill="{C_NAVY}"/>'
-                        )
+    # ── Rungs ─────────────────────────────────────────────────────────────────
+    for rung, wy in zip(rungs, rung_ys):
+        contacts  = rung.get("contacts", [])
+        coil_comp = rung.get("coil")
+        nc        = rung.get("nc", True)
+        section   = rung.get("section", "")
 
-    # ── Chain separator lines between unrelated groups in same column ──────────
-    for ci in range(3):
-        if len(col_chain_info[ci]) > 1:
-            for i in range(len(col_chain_info[ci]) - 1):
-                y_end   = col_chain_info[ci][i]["y_end"]
-                y_start = col_chain_info[ci][i + 1]["y_start"]
-                y_sep   = (y_end + y_start) // 2
-                parts.append(
-                    f'<line x1="{COL_X[ci] + 8}" y1="{y_sep}" '
-                    f'x2="{COL_X[ci] + BOX_W - 8}" y2="{y_sep}" '
-                    f'stroke="{C_GREY}" stroke-width="0.5" '
-                    f'stroke-dasharray="3,2" opacity="0.55"/>'
-                )
+        # Section header label
+        if section:
+            sl_y = wy - 8
+            parts.append(
+                f'<rect x="{LDR_L_X + 2}" y="{sl_y - 11}" width="154" height="13" rx="2" fill="{C_NAVY}"/>'
+                f'<text x="{LDR_L_X + 6}" y="{sl_y}" font-family="Helvetica,Arial,sans-serif" '
+                f'font-size="7.5" font-weight="bold" fill="{C_WHITE}">{_xe(section)}</text>'
+            )
 
-    # ── Channel labels on input column ────────────────────────────────────────
-    for chain_d in col_chain_info[0]:
-        if chain_d["chain"]:
-            ch_label = str(_g(chain_d["chain"][0], "channel", "") or "")
-            if ch_label:
-                first_cid = str(_g(chain_d["chain"][0], "id", "")).strip()
-                if first_cid in comp_pos:
-                    _, cy_ch, _ = comp_pos[first_cid]
-                    parts.append(
-                        f'<text x="{COL_X[0] + BOX_W + 3}" y="{cy_ch + 8}" '
-                        f'font-family="Helvetica,Arial,sans-serif" font-size="6" '
-                        f'font-weight="bold" fill="{C_NAVY2}">{_xe(ch_label)}</text>'
-                    )
+        # Determine rung redline state
+        rung_rl = any(change_map.get(str(_g(c, "id", "")).strip()) for c in contacts)
+        if coil_comp:
+            rung_rl = rung_rl or bool(change_map.get(str(_g(coil_comp, "id", "")).strip()))
 
-    # ── Inter-column bus wires ─────────────────────────────────────────────────
-    for from_col, to_col in [(0, 1), (1, 2)]:
-        bus_x = COL_X[from_col] + BOX_W + SLD_BUS_OFS
+        wire_col  = C_RED  if rung_rl else C_NAVY
+        wire_dash = 'stroke-dasharray="5,3"' if rung_rl else ""
+        wire_w    = "1.6"  if rung_rl else "1.4"
 
-        lane_conns = [
-            c for c in safety_conns
-            if (_g(c, "from_id", "") in comp_pos
-                and _g(c, "to_id", "") in comp_pos
-                and comp_pos[_g(c, "from_id", "")][0] == COL_X[from_col]
-                and comp_pos[_g(c, "to_id",   "")][0] == COL_X[to_col])
-        ]
+        # Coil geometry
+        coil_left  = LDR_COIL_CX - LDR_COIL_BW
+        coil_right = LDR_COIL_CX + LDR_COIL_BW
 
-        if lane_conns:
-            src_ys = [comp_pos[_g(c, "from_id", "")][1] + dyn_box_h // 2
-                      for c in lane_conns if _g(c, "from_id", "") in comp_pos]
-            if src_ys:
-                bus_y1 = min(src_ys) - 2
-                bus_y2 = max(src_ys) + 2
-                # Vertical bus line
-                parts.append(
-                    f'<line x1="{bus_x}" y1="{bus_y1}" x2="{bus_x}" y2="{bus_y2}" '
-                    f'stroke="{C_NAVY}" stroke-width="1.8"/>'
-                )
-
-                # Source stubs: right edge of source → bus
-                seen_src: set = set()
-                for conn in lane_conns:
-                    fid = _g(conn, "from_id", "")
-                    tid = _g(conn, "to_id", "")
-                    fp  = str(_g(conn, "from_port", "") or "")
-                    key = (str(fid).lower(), str(tid).lower())
-                    is_rl  = key in conn_redlines
-                    w_col  = C_RED  if is_rl else C_NAVY
-                    w_w    = "1.6"  if is_rl else "1.2"
-                    if fid in comp_pos and fid not in seen_src:
-                        fy = comp_pos[fid][1] + dyn_box_h // 2
-                        sx = COL_X[from_col] + BOX_W
-                        dash = 'stroke-dasharray="4,2"' if is_rl else ""
-                        parts.append(
-                            f'<line x1="{sx}" y1="{fy}" x2="{bus_x}" y2="{fy}" '
-                            f'stroke="{w_col}" stroke-width="{w_w}" {dash}/>'
-                        )
-                        if fp:
-                            parts.append(
-                                f'<text x="{sx + 2}" y="{fy - 2}" '
-                                f'font-family="Helvetica,Arial,sans-serif" '
-                                f'font-size="5.5" fill="{C_GREY}">{_xe(fp)}</text>'
-                            )
-                        seen_src.add(fid)
-
-                # Target wires: bus → left edge of target with arrowhead
-                seen_tgt: set = set()
-                for conn in lane_conns:
-                    fid = _g(conn, "from_id", "")
-                    tid = _g(conn, "to_id",   "")
-                    tp  = str(_g(conn, "to_port", "") or "")
-                    key = (str(fid).lower(), str(tid).lower())
-                    is_rl  = key in conn_redlines
-                    w_col  = C_RED  if is_rl else C_NAVY
-                    w_w    = "1.6"  if is_rl else "1.2"
-                    arr_col = C_RED if is_rl else C_NAVY2
-                    if tid in comp_pos and tid not in seen_tgt:
-                        ty = comp_pos[tid][1] + dyn_box_h // 2
-                        tx = COL_X[to_col]
-                        dash = 'stroke-dasharray="4,2"' if is_rl else ""
-                        parts.append(
-                            f'<line x1="{bus_x}" y1="{ty}" x2="{tx}" y2="{ty}" '
-                            f'stroke="{w_col}" stroke-width="{w_w}" {dash}/>'
-                        )
-                        parts.append(
-                            f'<polygon points="{tx},{ty} {tx-7},{ty-3} {tx-7},{ty+3}" '
-                            f'fill="{arr_col}"/>'
-                        )
-                        if tp:
-                            parts.append(
-                                f'<text x="{bus_x + 2}" y="{ty - 2}" '
-                                f'font-family="Helvetica,Arial,sans-serif" '
-                                f'font-size="5.5" fill="{C_GREY}">{_xe(tp)}</text>'
-                            )
-                        seen_tgt.add(tid)
+        # Contact positions: spread evenly in available zone
+        x_start = LDR_L_X + 10
+        x_end   = coil_left - 12 if coil_comp else LDR_R_X - 6
+        n = len(contacts)
+        if n > 0:
+            span = x_end - x_start
+            step = max(26, min(LDR_CONTACT_PITCH, span // n))
+            total_w = n * step
+            cx0 = x_start + max(0, (span - total_w) // 2) + step // 2
+            contact_xs = [cx0 + i * step for i in range(n)]
         else:
-            # Fallback: single midpoint arrow when no connection data
-            arrow_y = (sld_comp_y0 + (len(cols[from_col]) * dyn_row_h) // 2 + dyn_box_h // 2
-                       if cols[from_col] else sld_comp_y0 + dyn_box_h // 2)
-            parts.append(_draw_connection_arrow(
-                COL_X[from_col] + BOX_W + 4, arrow_y,
-                COL_X[to_col]   - 4,         arrow_y,
-            ))
+            contact_xs = []
+            step = LDR_CONTACT_PITCH
 
-    # ── Feedback connections (dashed amber, routed below components) ───────────
-    for conn in feedback_conns:
-        fid = _g(conn, "from_id", "")
-        tid = _g(conn, "to_id",   "")
-        if fid in comp_pos and tid in comp_pos:
-            fx, fy, fh = comp_pos[fid]
-            tx, ty, th = comp_pos[tid]
-            src_cx = fx + BOX_W // 2
-            tgt_cx = tx + BOX_W // 2
+        # Rung wires (draw first, symbols on top)
+        wire_end = coil_left - 2 if coil_comp else LDR_R_X
+        parts.append(
+            f'<line x1="{LDR_L_X}" y1="{wy}" x2="{wire_end}" y2="{wy}" '
+            f'stroke="{wire_col}" stroke-width="{wire_w}" {wire_dash}/>'
+        )
+        if coil_comp:
             parts.append(
-                f'<polyline points="'
-                f'{src_cx},{fy + fh} {src_cx},{feedback_y} '
-                f'{tgt_cx},{feedback_y} {tgt_cx},{ty + th}" '
-                f'fill="none" stroke="{C_AMBER}" stroke-width="1.1" '
-                f'stroke-dasharray="4,3" opacity="0.9"/>'
-            )
-            ay = ty + th
-            parts.append(
-                f'<polygon points="{tgt_cx},{ay} {tgt_cx-3},{ay+7} {tgt_cx+3},{ay+7}" '
-                f'fill="{C_AMBER}" opacity="0.9"/>'
+                f'<line x1="{coil_right + 2}" y1="{wy}" x2="{LDR_R_X}" y2="{wy}" '
+                f'stroke="{wire_col}" stroke-width="{wire_w}" {wire_dash}/>'
             )
 
-    # ── Components (drawn on top of all wires) ─────────────────────────────────
-    for ci in range(3):
-        for chain_d in col_chain_info[ci]:
-            for comp in chain_d["chain"]:
-                cid    = str(_g(comp, "id", "")).strip()
-                ch_ids = change_map.get(cid, [])
-                if cid in comp_pos:
-                    x, y, bh = comp_pos[cid]
-                    parts.append(_draw_component_box(comp, x, y, ch_ids, change_by_id,
-                                                     box_h=bh))
+        # ── Inline contact symbols ─────────────────────────────────────────────
+        for comp_c, cx_c in zip(contacts, contact_xs):
+            cid    = str(_g(comp_c, "id", "")).strip()
+            ch_ids = change_map.get(cid, [])
+            rl_c   = bool(ch_ids)
+            # Draw symbol on wire
+            if nc:
+                parts.append(_ldr_sym_for_comp(comp_c, cx_c, wy, rl_c))
+            else:
+                parts.append(_ldr_no(cx_c, wy, C_RED if rl_c else C_NAVY))
+            # Label below
+            col_t = C_RED if rl_c else C_GREY
+            lbl_y = wy + LDR_CH + 9
+            parts.append(
+                f'<text x="{cx_c}" y="{lbl_y}" font-family="Helvetica,Arial,sans-serif" '
+                f'font-size="{LDR_LBL_FS}" font-weight="bold" fill="{col_t}" '
+                f'text-anchor="middle">{_xe(_trunc(cid, 9))}</text>'
+            )
+            # Redline badges above contact
+            if ch_ids:
+                br = 6
+                bx = cx_c + LDR_CW + br + 2
+                by = wy - LDR_CH - br - 1
+                for ch_id in sorted(ch_ids)[:2]:
+                    pri = _priority(change_by_id.get(ch_id, {}))
+                    bc  = PRIORITY_COLOUR.get(pri, C_RED)
+                    parts.append(
+                        f'<circle cx="{bx}" cy="{by}" r="{br}" fill="{bc}" '
+                        f'stroke="{C_WHITE}" stroke-width="0.8"/>'
+                        f'<text x="{bx}" y="{by + 2}" font-family="Helvetica,Arial,sans-serif" '
+                        f'font-size="5" font-weight="bold" fill="{C_WHITE}" '
+                        f'text-anchor="middle">{ch_id}</text>'
+                    )
+                    bx += br * 2 + 2
 
-    # ── Bottom power rail (0VDC) ──────────────────────────────────────────────
-    bot_rail_y = svg_h - LEGEND_H - SLD_RAIL_H - 4
-    parts.append(_draw_power_rail(bot_rail_y, "0VDC"))
+        # ── Coil symbol ────────────────────────────────────────────────────────
+        if coil_comp:
+            cid    = str(_g(coil_comp, "id", "")).strip()
+            ch_ids = change_map.get(cid, [])
+            rl_c   = bool(ch_ids)
+            parts.append(_ldr_coil_for_comp(coil_comp, LDR_COIL_CX, wy, rl_c))
+            # Label below coil
+            col_t = C_RED if rl_c else C_GREY
+            lbl_y = wy + LDR_COIL_R + 9
+            parts.append(
+                f'<text x="{LDR_COIL_CX}" y="{lbl_y}" '
+                f'font-family="Helvetica,Arial,sans-serif" font-size="{LDR_LBL_FS}" '
+                f'font-weight="bold" fill="{col_t}" text-anchor="middle">'
+                f'{_xe(_trunc(cid, 10))}</text>'
+            )
+            # Redline badges on coil
+            if ch_ids:
+                br = 6
+                bx = LDR_COIL_CX + LDR_COIL_BW + br + 2
+                by = wy - LDR_COIL_R - br
+                for ch_id in sorted(ch_ids)[:2]:
+                    pri = _priority(change_by_id.get(ch_id, {}))
+                    bc  = PRIORITY_COLOUR.get(pri, C_RED)
+                    parts.append(
+                        f'<circle cx="{bx}" cy="{by}" r="{br}" fill="{bc}" '
+                        f'stroke="{C_WHITE}" stroke-width="0.8"/>'
+                        f'<text x="{bx}" y="{by + 2}" font-family="Helvetica,Arial,sans-serif" '
+                        f'font-size="5" font-weight="bold" fill="{C_WHITE}" '
+                        f'text-anchor="middle">{ch_id}</text>'
+                    )
+                    bx += br * 2 + 2
 
     # ── Legend ────────────────────────────────────────────────────────────────
-    leg_y = svg_h - LEGEND_H + 4
-    parts.append(
-        f'<rect x="0" y="{leg_y - 4}" width="{SVG_W}" height="{LEGEND_H}" fill="{C_LGREY}"/>'
-    )
-    lx = 8
-    parts.append(
-        f'<rect x="{lx}" y="{leg_y + 4}" width="28" height="16" rx="3" '
-        f'fill="{C_LGREY}" stroke="{C_NAVY}" stroke-width="1"/>'
-    )
-    parts.append(
-        f'<text x="{lx + 32}" y="{leg_y + 16}" '
-        f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
-        f'No findings</text>'
-    )
-    lx2 = 130
-    parts.append(
-        f'<rect x="{lx2}" y="{leg_y + 4}" width="28" height="16" rx="3" '
-        f'fill="#FFF5F5" stroke="{C_RED}" stroke-width="1.5" stroke-dasharray="5,3"/>'
-    )
-    parts.append(
-        f'<circle cx="{lx2 + 28}" cy="{leg_y + 4}" r="{BADGE_R}" '
-        f'fill="{C_RED}" stroke="{C_WHITE}" stroke-width="1"/>'
-    )
-    parts.append(
-        f'<text x="{lx2 + 28}" y="{leg_y + 8}" '
-        f'font-family="Helvetica,Arial,sans-serif" font-size="7" font-weight="bold" '
-        f'fill="{C_WHITE}" text-anchor="middle">N</text>'
-    )
-    parts.append(
-        f'<text x="{lx2 + 42}" y="{leg_y + 16}" '
-        f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
-        f'Redline (N = change no.)</text>'
-    )
-    lx3 = 320
-    for lbl, col in [("CRITICAL", C_RED), ("MAJOR", C_AMBER), ("MINOR", "#2471A3")]:
-        parts.append(f'<circle cx="{lx3}" cy="{leg_y + 12}" r="7" fill="{col}"/>')
-        parts.append(
-            f'<text x="{lx3 + 10}" y="{leg_y + 16}" '
-            f'font-family="Helvetica,Arial,sans-serif" font-size="7.5" fill="{C_GREY}">'
-            f'{lbl}</text>'
-        )
-        lx3 += 58
+    leg_y = svg_h - LEGEND_H + 2
+    parts.append(f'<rect x="0" y="{leg_y - 2}" width="{SVG_W}" height="{LEGEND_H + 2}" fill="{C_LGREY}"/>')
 
-    parts.append('</svg>')
+    # NC contact sample
+    lx = 8
+    parts.append(f'<line x1="{lx}" y1="{leg_y+12}" x2="{lx+26}" y2="{leg_y+12}" stroke="{C_NAVY}" stroke-width="1.2"/>')
+    parts.append(_ldr_nc(lx + 13, leg_y + 12, C_NAVY))
+    parts.append(
+        f'<text x="{lx + 30}" y="{leg_y + 16}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="7" fill="{C_GREY}">NC contact</text>'
+    )
+    # Coil sample
+    lx2 = 118
+    parts.append(f'<line x1="{lx2}" y1="{leg_y+12}" x2="{lx2+11}" y2="{leg_y+12}" stroke="{C_NAVY}" stroke-width="1.2"/>')
+    parts.append(
+        f'<circle cx="{lx2+22}" cy="{leg_y+12}" r="11" fill="none" stroke="{C_NAVY}" stroke-width="1.5"/>'
+        f'<text x="{lx2+22}" y="{leg_y+15}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="6" fill="{C_NAVY}" text-anchor="middle">K</text>'
+        f'<text x="{lx2+37}" y="{leg_y+16}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="7" fill="{C_GREY}">Output coil</text>'
+    )
+    # Redline wire sample
+    lx3 = 232
+    parts.append(
+        f'<line x1="{lx3}" y1="{leg_y+12}" x2="{lx3+26}" y2="{leg_y+12}" '
+        f'stroke="{C_RED}" stroke-width="1.5" stroke-dasharray="4,2"/>'
+        f'<circle cx="{lx3+32}" cy="{leg_y+12}" r="6" fill="{C_RED}" stroke="{C_WHITE}" stroke-width="0.8"/>'
+        f'<text x="{lx3+32}" y="{leg_y+15}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="5" font-weight="bold" fill="{C_WHITE}" text-anchor="middle">N</text>'
+        f'<text x="{lx3+42}" y="{leg_y+16}" font-family="Helvetica,Arial,sans-serif" '
+        f'font-size="7" fill="{C_GREY}">Redline</text>'
+    )
+    # Priority badges
+    lx4 = 340
+    for lbl, col in [("CRIT", C_RED), ("MAJ", C_AMBER), ("MIN", "#2471A3")]:
+        parts.append(
+            f'<circle cx="{lx4}" cy="{leg_y+12}" r="6" fill="{col}"/>'
+            f'<text x="{lx4+9}" y="{leg_y+16}" font-family="Helvetica,Arial,sans-serif" '
+            f'font-size="7" fill="{C_GREY}">{lbl}</text>'
+        )
+        lx4 += 44
+
+    parts.append("</svg>")
     return "\n".join(parts)
 
 
 def build_diagram_svg(parse_result, review_result) -> str:
-    """Route to SLD layout when connection topology is available, else block diagram."""
-    connections = list(_g(parse_result, "connections", []))
-    if connections:
-        logger.info("Diagram: SLD mode (%d connections)", len(connections))
+    """Always use the ladder SLD renderer; fall back to block diagram on error."""
+    try:
+        components = list(_g(parse_result, "components", []))
+        logger.info("Diagram: ladder mode (%d components)", len(components))
         return _build_sld_svg(parse_result, review_result)
-    logger.info("Diagram: block mode (no connections)")
-    return _build_block_svg(parse_result, review_result)
+    except Exception as e:
+        logger.warning("Ladder diagram failed (%s), falling back to block diagram", e)
+        return _build_block_svg(parse_result, review_result)
 
 
 # ── Public API (called from export_service) ────────────────────────────────────
