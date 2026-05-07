@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+venv/
+venv311/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.egg-info/
+.expo/
+
+# Uploads and outputs
+uploads/
+outputs/
+*.pdf
+*.docx
+
+# Database
+*.db
+*.sqlite3

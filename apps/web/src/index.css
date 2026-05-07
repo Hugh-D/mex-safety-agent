@@ -1,0 +1,490 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f6f8fb;
+  color: #102a43;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input:not([type="checkbox"]),
+select {
+  font: inherit;
+}
+
+.app-shell {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+header {
+  margin-bottom: 32px;
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: clamp(1.8rem, 2.5vw, 2.8rem);
+}
+
+h2 {
+  margin: 24px 0 12px;
+  font-size: 1.2rem;
+}
+
+.grid,
+.grid-3 {
+  display: grid;
+  gap: 16px;
+}
+
+.grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.grid-3 {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+}
+
+label {
+  display: grid;
+  gap: 8px;
+}
+
+input,
+select {
+  border: 1px solid #d8e3ef;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: white;
+}
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: #002559;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #09356a;
+}
+
+.result-card,
+.error-box {
+  padding: 18px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #d8e3ef;
+}
+
+.error-box {
+  border-color: #f7c6c5;
+  background: #fff1f0;
+}
+
+/* ── Risk graph ── */
+.risk-graph-toggle {
+  margin: 12px 0 4px;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #4a6080;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #002559;
+  cursor: pointer;
+}
+
+.risk-graph-wrap {
+  background: white;
+  border: 1px solid #d8e3ef;
+  border-radius: 12px;
+  padding: 20px 16px 12px;
+  margin: 12px 0 16px;
+}
+
+.risk-graph-caption {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: #8a9ab0;
+  text-align: center;
+}
+
+/* ── Nav tabs ── */
+nav {
+  display: flex;
+  gap: 8px;
+}
+
+nav button {
+  background: transparent;
+  color: #002559;
+  border: 2px solid #d8e3ef;
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+nav button:hover {
+  background: #f0f4ff;
+}
+
+nav button.active {
+  background: #002559;
+  color: white;
+  border-color: #002559;
+}
+
+/* ── Design Review ── */
+.design-review section {
+  margin-bottom: 24px;
+}
+
+.subtitle {
+  color: #4a6080;
+  margin: 0 0 20px;
+  font-size: 0.95rem;
+}
+
+.drop-zone {
+  border: 2px dashed #b0c4de;
+  border-radius: 12px;
+  padding: 36px;
+  text-align: center;
+  cursor: pointer;
+  background: white;
+  transition: border-color 0.15s;
+  margin-bottom: 20px;
+}
+
+.drop-zone:hover {
+  border-color: #002559;
+}
+
+.drop-zone-hint {
+  color: #4a6080;
+  line-height: 1.8;
+}
+
+.drop-zone-file {
+  color: #002559;
+  font-weight: 600;
+}
+
+.form-row {
+  margin-bottom: 16px;
+}
+
+.form-row label,
+.design-review > label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.form-row-3 label {
+  margin-bottom: 0;
+}
+
+.design-review textarea {
+  border: 1px solid #d8e3ef;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: white;
+  font: inherit;
+  width: 100%;
+  resize: vertical;
+}
+
+.primary-btn {
+  margin-top: 8px;
+  background: #70bf54;
+  color: #002559;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 12px 28px;
+  border: none;
+  cursor: pointer;
+}
+
+.primary-btn:hover {
+  background: #5aaa3e;
+}
+
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-msg {
+  color: #c62828;
+  background: #fdecea;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+}
+
+/* Verdict banner */
+.verdict-banner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
+  border-radius: 10px;
+  border: 2px solid;
+  margin-bottom: 8px;
+}
+
+.verdict-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.verdict-gap {
+  font-size: 0.9rem;
+  color: #4a6080;
+}
+
+.gap-summary {
+  color: #4a6080;
+  font-size: 0.9rem;
+  margin: 0 0 20px;
+}
+
+/* Result sections */
+.result-section {
+  background: white;
+  border: 1px solid #d8e3ef;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.result-section h3 {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  color: #002559;
+}
+
+/* Architecture tiles */
+.arch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.arch-tile {
+  background: #f6f8fb;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.arch-tile-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #002559;
+}
+
+.arch-tile-label {
+  font-size: 0.78rem;
+  color: #6b8299;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.arch-summary {
+  font-size: 0.9rem;
+  color: #4a6080;
+  margin: 0;
+}
+
+/* Components table */
+.components-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.components-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: #f0f4ff;
+  color: #002559;
+  font-weight: 600;
+  border-bottom: 2px solid #d8e3ef;
+}
+
+.components-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eef2f7;
+  color: #102a43;
+}
+
+/* Finding cards */
+.finding-card {
+  border-left: 4px solid #999;
+  background: #fafbfd;
+  border-radius: 0 8px 8px 0;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.finding-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.severity-badge {
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+}
+
+.clause-ref {
+  font-size: 0.8rem;
+  color: #6b8299;
+  font-style: italic;
+}
+
+.finding-desc {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+}
+
+.finding-remedy {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #2e5fa3;
+}
+
+/* Conformance rows */
+.conformance-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 0.9rem;
+}
+
+.conformance-row:last-child {
+  border-bottom: none;
+}
+
+.check {
+  color: #2e7d32;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Rich text rendering ── */
+.rich-list {
+  margin: 4px 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  color: #102a43;
+  line-height: 1.6;
+}
+
+.rich-list li {
+  margin-bottom: 4px;
+}
+
+/* ── Print / download button ── */
+.print-btn {
+  margin-left: auto;
+  background: white;
+  border: 1.5px solid currentColor;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: inherit;
+}
+
+.print-btn:hover {
+  opacity: 0.8;
+}
+
+/* ── Print styles ── */
+.print-only { display: none; }
+
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+
+  body { background: white; }
+
+  .app-shell { max-width: 100%; padding: 0; }
+
+  .result-section {
+    border: 1px solid #ccc;
+    break-inside: avoid;
+    margin-bottom: 12px;
+  }
+
+  .finding-card { break-inside: avoid; }
+
+  .verdict-banner {
+    border-radius: 0;
+    margin-bottom: 12px;
+  }
+
+  .print-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0 16px;
+    border-bottom: 3px solid #002559;
+    margin-bottom: 16px;
+  }
+
+  .print-logo {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #002559;
+  }
+
+  .print-meta {
+    font-size: 0.85rem;
+    text-align: right;
+    color: #333;
+    line-height: 1.5;
+  }
+}

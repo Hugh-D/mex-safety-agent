@@ -1,0 +1,120 @@
+{
+  "_note": "Single source of truth for all standards referenced by MEX Safety Platform. Both system prompts and documentation are generated from this file. All years engineer-confirmed.",
+
+  "as_nzs_4024": {
+    "primary": [
+      {
+        "code": "AS/NZS 4024.1100:2019",
+        "title": "General principles and application guide",
+        "iso_equiv": null
+      },
+      {
+        "code": "AS/NZS 4024.1204:2019",
+        "title": "Safety of machinery — Electrical equipment of machines — General requirements",
+        "iso_equiv": "IEC 60204-1:2016"
+      },
+      {
+        "code": "AS/NZS 4024.1502:2014",
+        "title": "Interlocking devices associated with guards",
+        "iso_equiv": "ISO 14119:2013"
+      },
+      {
+        "code": "AS/NZS 4024.1503:2014",
+        "title": "Safety-related parts of control systems — General principles for design",
+        "iso_equiv": "ISO 13849-1:2006"
+      },
+      {
+        "code": "AS/NZS 4024.1601:2014",
+        "title": "Controls, interlocks and guarding — Guards",
+        "iso_equiv": "EN 953:1997+A1"
+      },
+      {
+        "code": "AS/NZS 4024.1602:2014",
+        "title": "Interlocking devices — Principles for design and selection",
+        "iso_equiv": "ISO 14119:2013"
+      },
+      {
+        "code": "AS/NZS 4024.1603:2019",
+        "title": "Prevention of unexpected start-up",
+        "iso_equiv": "ISO 14118:2017"
+      },
+      {
+        "code": "AS/NZS 4024.1604:2019",
+        "title": "Emergency stop — Principles for design",
+        "iso_equiv": "ISO 13850:2015"
+      },
+      {
+        "code": "AS/NZS 4024.1801:2014",
+        "title": "Safety distances — upper and lower limbs (supersedes withdrawn AS 4024.1802)",
+        "iso_equiv": "ISO 13857:2008"
+      },
+      {
+        "code": "AS/NZS 4024.1803:2019",
+        "title": "Minimum gaps to prevent crushing",
+        "iso_equiv": "ISO 13854:2017"
+      }
+    ],
+    "supplementary": [
+      {
+        "code": "AS/NZS 4024.2801:2017",
+        "title": "Positioning of safeguards with respect to the approach speeds of parts of the human body",
+        "iso_equiv": "ISO 13855:2010"
+      },
+      {
+        "code": "AS/NZS 4024.2802:2017",
+        "title": "Application of protective equipment to detect the presence of persons",
+        "iso_equiv": "IEC TS 62046:2008"
+      },
+      {
+        "code": "AS/NZS 4024.3001:2021",
+        "title": "Machine tools safety — Presses — General safety requirements",
+        "iso_equiv": null
+      },
+      {
+        "code": "AS/NZS 4024.3101:2008",
+        "title": "Pneumatic equipment of machines",
+        "iso_equiv": null
+      },
+      {
+        "code": "AS/NZS 4024.3301:2017",
+        "title": "Robots and robotic devices — Safety requirements for industrial robots — Robots",
+        "iso_equiv": "ISO 10218-1:2011"
+      }
+    ]
+  },
+
+  "international_secondary": [
+    {
+      "code": "ISO 12100:2011",
+      "title": "Risk assessment and risk reduction — General principles"
+    },
+    {
+      "code": "ISO 13849-1:2015",
+      "title": "Performance Level (PLa–PLe) and Category (B, 1, 2, 3, 4)"
+    },
+    {
+      "code": "IEC 62061:2021",
+      "title": "SIL for safety-related control systems"
+    },
+    {
+      "code": "IEC 61800-5-2:2016",
+      "title": "Drive safety functions (STO, SS1, SLS, SOS, SDI)"
+    },
+    {
+      "code": "ISO 14119:2013",
+      "title": "Interlocking devices for guards"
+    },
+    {
+      "code": "ISO 13850:2015",
+      "title": "Emergency stop"
+    },
+    {
+      "code": "ISO 13857:2008",
+      "title": "Safety distances"
+    },
+    {
+      "code": "ISO 13854:2017",
+      "title": "Minimum gaps to avoid crushing of parts of the human body"
+    }
+  ]
+}

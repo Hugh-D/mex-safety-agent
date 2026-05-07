@@ -1,0 +1,64 @@
+{
+  "parameters": {
+    "LO": {
+      "name": "Likelihood of Occurrence",
+      "values": [
+        {"value": 0.033, "label": "Almost impossible"},
+        {"value": 1, "label": "Highly Unlikely"},
+        {"value": 1.5, "label": "Unlikely"},
+        {"value": 2, "label": "Possible"},
+        {"value": 5, "label": "Even Chance"},
+        {"value": 8, "label": "Probable"},
+        {"value": 10, "label": "Likely"},
+        {"value": 15, "label": "Certain"}
+      ]
+    },
+    "FE": {
+      "name": "Frequency of Exposure",
+      "values": [
+        {"value": 0.5, "label": "Annually"},
+        {"value": 1, "label": "Monthly"},
+        {"value": 1.5, "label": "Weekly"},
+        {"value": 2.5, "label": "Daily"},
+        {"value": 4, "label": "Hourly"},
+        {"value": 5, "label": "Constantly"}
+      ]
+    },
+    "DPH": {
+      "name": "Degree of Possible Harm",
+      "values": [
+        {"value": 0.1, "label": "Scratch / Bruise"},
+        {"value": 0.5, "label": "Laceration / cut / mild ill health effect"},
+        {"value": 1, "label": "Fracture: minor bone - fingers/toes"},
+        {"value": 2, "label": "Fracture: major bone - hand/arm/leg"},
+        {"value": 4, "label": "Loss of 1 or 2 fingers/toes"},
+        {"value": 8, "label": "Leg/hand amputation, partial loss of hearing or eye"},
+        {"value": 10, "label": "Amputation of 2 legs/hands, total loss of hearing/sight in both ears/eyes"},
+        {"value": 12, "label": "Critical or permanent illness"},
+        {"value": 15, "label": "Fatality"}
+      ]
+    },
+    "NP": {
+      "name": "Number of Persons at Risk",
+      "values": [
+        {"value": 1, "label": "1-2 persons"},
+        {"value": 2, "label": "3-7 persons"},
+        {"value": 4, "label": "8-15 persons"},
+        {"value": 8, "label": "16-50 persons"},
+        {"value": 12, "label": "More than 50 persons"}
+      ]
+    }
+  },
+  "risk_bands": [
+    {"min": 0, "max": 1, "label": "Acceptable", "acceptable": true, "colour": "#00B050"},
+    {"min": 1, "max": 5, "label": "Very Low", "acceptable": true, "colour": "#92D050"},
+    {"min": 5, "max": 10, "label": "Low", "acceptable": false, "colour": "#FFFF00"},
+    {"min": 10, "max": 50, "label": "Significant", "acceptable": false, "colour": "#FFC000"},
+    {"min": 50, "max": 100, "label": "High", "acceptable": false, "colour": "#FF6600"},
+    {"min": 100, "max": 500, "label": "Very High", "acceptable": false, "colour": "#FF0000"},
+    {"min": 500, "max": 1000, "label": "Extreme", "acceptable": false, "colour": "#CC0000"},
+    {"min": 1000, "max": null, "label": "Unacceptable", "acceptable": false, "colour": "#990000"}
+  ],
+  "acceptance_threshold": 5,
+  "formula": "HRN = LO × FE × DPH × NP"
+}

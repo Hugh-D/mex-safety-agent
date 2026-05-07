@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "MEX Safety Mobile",
+    "slug": "mex-safety-mobile",
+    "version": "0.1.0",
+    "sdkVersion": "49.0.0",
+    "platforms": ["ios", "android", "web"],
+    "jsEngine": "hermes",
+    "main": "App.tsx"
+  }
+}

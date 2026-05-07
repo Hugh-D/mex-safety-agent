@@ -1,0 +1,44 @@
+{
+  "source_standard": "AS/NZS 4024.1503:2014 (ISO 13849-1) — Figure A.1",
+  "parameters": {
+    "S": {
+      "name": "Severity of injury",
+      "values": {
+        "S1": "Slight (normally reversible injury)",
+        "S2": "Serious (normally irreversible injury or death)"
+      }
+    },
+    "F": {
+      "name": "Frequency and/or exposure time to hazard",
+      "values": {
+        "F1": "Seldom-to-less-often and/or exposure time is short",
+        "F2": "Frequent-to-continuous and/or exposure time is long"
+      },
+      "note": "If frequency is higher than once per hour, F2 should be chosen"
+    },
+    "P": {
+      "name": "Possibility of avoiding hazard or limiting harm",
+      "values": {
+        "P1": "Possible under specific conditions",
+        "P2": "Scarcely possible"
+      }
+    }
+  },
+  "risk_graph": {
+    "S1-F1-P1": "a",
+    "S1-F1-P2": "b",
+    "S1-F2-P1": "b",
+    "S1-F2-P2": "c",
+    "S2-F1-P1": "c",
+    "S2-F1-P2": "d",
+    "S2-F2-P1": "d",
+    "S2-F2-P2": "e"
+  },
+  "performance_levels": {
+    "a": {"pfhd_min": 3e-6, "pfhd_max": 1e-5, "description": "Low contribution to risk reduction"},
+    "b": {"pfhd_min": 1e-6, "pfhd_max": 3e-6, "description": ""},
+    "c": {"pfhd_min": 3e-7, "pfhd_max": 1e-6, "description": ""},
+    "d": {"pfhd_min": 1e-7, "pfhd_max": 3e-7, "description": ""},
+    "e": {"pfhd_min": 0, "pfhd_max": 1e-7, "description": "High contribution to risk reduction"}
+  }
+}

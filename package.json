@@ -1,0 +1,16 @@
+{
+  "name": "mex-safety-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MEX Safety Platform — AI-powered machine safety lifecycle tool",
+  "workspaces": [
+    "apps/mobile",
+    "apps/web",
+    "shared"
+  ],
+  "scripts": {
+    "mobile": "cd apps/mobile && npm start",
+    "web": "cd apps/web && npm start",
+    "api": "cd api && python main.py"
+  }
+}

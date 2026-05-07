@@ -1,0 +1,339 @@
+{
+  "_meta": {
+    "source": "Elec_Symbols.dxf",
+    "dxf_version": "AC1032",
+    "total_blocks": 531,
+    "naming_convention": "H/V prefix (horizontal/vertical orientation) + FAMILY code + variant suffix",
+    "variant_suffixes": {
+      "orientation": { "H": "horizontal", "V": "vertical" },
+      "numeric": "pole count or amperage rating (e.g. Q9=9A, Q21=21A, Q25=25A)",
+      "contact_arrangement": { "1": "NO contact", "2": "NC contact", "3": "NO+NC", "4": "2×NO+NC" },
+      "locking": { "KS": "key switch", "KSL": "key switch latching", "L": "latching", "LS": "lighted spring-return", "LSL": "lighted spring-return latching" },
+      "mushroom": { "M": "mushroom head (e-stop)", "ML": "mushroom latching", "MTL": "mushroom turn-to-release (e-stop)", "PM": "padlock mushroom" },
+      "illumination": { "RE": "ring-illuminated", "REL": "ring-illuminated latching" },
+      "colors": { "A": "amber", "B": "blue", "C": "clear", "G": "green", "R": "red", "W": "white", "Y": "yellow" },
+      "phase": { "1PH": "single-phase", "3PH": "three-phase", "3": "three-phase variant", "3R": "three-phase reversed" },
+      "drive_type": { "I": "inverter output", "IN3": "inverter 3-phase", "M": "motor drive", "C": "converter", "U": "universal drive", "TS": "terminal/side view" },
+      "timer_mode": { "F": "on-delay", "N": "off-delay", "DOO": "door open/off-delay" },
+      "transformer": { "CT": "current transformer", "CTR": "current transformer reversed", "P3": "3-phase power transformer" }
+    }
+  },
+
+  "families": {
+    "AM": {
+      "type": "ammeter",
+      "description": "Panel-mount ammeter (measuring instrument)",
+      "tag_prefix": "PA",
+      "safety_relevant": false,
+      "compliance_type": "other",
+      "blocks": ["HAM1", "VAM1"]
+    },
+
+    "AN": {
+      "type": "annunciator",
+      "description": "Annunciator / alarm indicator. Variants: B=buzzer, S=sounder, Z=beacon",
+      "tag_prefix": "HA",
+      "safety_relevant": false,
+      "compliance_type": "other",
+      "blocks": ["HAN1B", "HAN1S", "HAN1Z", "VAN1B", "VAN1S", "VAN1Z"]
+    },
+
+    "BE": {
+      "type": "beacon",
+      "description": "Rotating/flashing beacon. Variants: RFL=rotating flash, RRT=rotating",
+      "tag_prefix": "HL",
+      "safety_relevant": false,
+      "compliance_type": "other",
+      "blocks": ["HBE1RFL", "HBE1RRT", "VBE1RFL", "VBE1RRT"]
+    },
+
+    "CB": {
+      "type": "circuit_breaker",
+      "description": "Moulded case circuit breaker (MCCB). CB1 = single type, CB11 = with accessories. Q# suffix = ampere frame (Q9=9A … Q146=146A). TH=thermal, THI=thermal inverse trip. CB2 = smaller frame.",
+      "tag_prefix": "QA",
+      "safety_relevant": false,
+      "compliance_type": "other",
+      "notes": "CB2 family (V only) is a compact/DIN-rail MCB variant"
+    },
+
+    "CR": {
+      "type": "control_relay",
+      "description": "Control relay. CR1 = standard relay coil+contacts. CR21/22/23 = relay contact symbols (NO/NC/changeover). Variant suffixes indicate specific models: HSP=high-speed, SSD=solid-state delay, K33/F34=specific catalogue models, OOD=off-delay, CNE/CNM/CNN=contact arrangements.",
+      "tag_prefix": "KF",
+      "safety_relevant": true,
+      "compliance_type": "other",
+      "safety_note": "CR1 variants with SSD or HSP suffix may represent safety relay coils — cross-check with drawing tag (KF prefix) and forced-guided contact notation. Dedicated safety relay symbols are not present; safety relays will use CR1 with safety-specific tag.",
+      "notes": "CR21/22/23 = relay contact only (no coil) — used as auxiliary contact symbols on drawings"
+    },
+
+    "DS": {
+      "type": "disconnect_switch",
+      "description": "Isolator / disconnect switch. DS11 = 3-pole, DS21 = 2-pole. Q# suffix = ampere rating.",
+      "tag_prefix": "QS",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "FL": {
+      "type": "fuse_link",
+      "description": "HRC fuse link (cartridge). FL11/FL12 = type 1/2 fuseholder formats.",
+      "tag_prefix": "FU",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "FS": {
+      "type": "fuse_switch",
+      "description": "Fuse switch disconnector. FS11/FS12 = single/double break. S20 suffix = 20A rated.",
+      "tag_prefix": "QF",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "FT": {
+      "type": "foot_switch",
+      "description": "Foot-operated switch. FT11/FT12 = NO/NC variants. L suffix = with guard/latch.",
+      "tag_prefix": "SF",
+      "safety_relevant": true,
+      "compliance_type": "interlock",
+      "safety_note": "Foot switches are enabling devices under ISO 13849. Check PLr requirement; unguarded foot switch cannot be sole safety measure."
+    },
+
+    "FU": {
+      "type": "fuse",
+      "description": "Fuse (general). FU1/FU2 = type variants. FS suffix = fuseholder with switch.",
+      "tag_prefix": "FU",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "GND": {
+      "type": "earth",
+      "description": "Earth / ground reference symbol.",
+      "tag_prefix": "PE",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "LR": {
+      "type": "latching_relay",
+      "description": "Latching (bistable) relay.",
+      "tag_prefix": "KF",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "LS": {
+      "type": "limit_switch",
+      "description": "Limit switch / position switch. LS11=NO, LS12=NC. C suffix = cam-operated. S13/S16/S84/S87 suffix = specific actuator/roller head variants.",
+      "tag_prefix": "SQ",
+      "safety_relevant": true,
+      "compliance_type": "interlock",
+      "safety_note": "Limit switches used as guard interlocks must meet ISO 14119 requirements. Check whether positive-opening mechanism (direct-opening action) is specified — standard LS symbols do not distinguish this; must be noted in BOM or title block."
+    },
+
+    "LT": {
+      "type": "pilot_light",
+      "description": "Pilot indicator light. Colour suffix: A=amber, B=blue, C=clear, G=green, R=red, W=white, Y=yellow. H13/H25 = high-intensity LED.",
+      "tag_prefix": "HL",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "MO": {
+      "type": "motor",
+      "description": "Electric motor. MO12/13/14 = 2/3/4-pole variants. M9/M11 = terminal count variants (9 or 11 terminals — likely includes brake/thermistor terminals).",
+      "tag_prefix": "M",
+      "safety_relevant": false,
+      "compliance_type": "other",
+      "notes": "M11 variant likely represents motor with integral brake and thermistor — relevant to STO/SBC safety functions"
+    },
+
+    "MS": {
+      "type": "motor_starter",
+      "description": "Motor starter / contactor. MS1 = direct-on-line starter. MS21P/MS22P = 1-phase variants (single/double-throw).",
+      "tag_prefix": "KM",
+      "safety_relevant": true,
+      "compliance_type": "contactor",
+      "safety_note": "Safety-rated contactors (e.g. force-guided / positively guided) use the same symbol. Distinguish by manufacturer model in title block. Per IEC 62061 / ISO 13849, safety contactor must be force-guided and monitored."
+    },
+
+    "OL": {
+      "type": "overload_relay",
+      "description": "Thermal overload relay. OL1 = standard, OL2 = compact variant.",
+      "tag_prefix": "KH",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "PB": {
+      "type": "pushbutton",
+      "description": "Push button station. PB11=NO, PB12=NC. See variant map below.",
+      "tag_prefix": "SB",
+      "safety_relevant": true,
+      "compliance_type": "e_stop",
+      "variants": {
+        "standard": ["PB11", "PB12"],
+        "e_stop_mushroom_head": ["PB11M", "PB12M", "PB11ML", "PB12ML"],
+        "e_stop_turn_to_release": ["PB11MTL", "PB12MTL"],
+        "e_stop_padlock": ["PB11PM"],
+        "key_release": ["PB11KS", "PB12KS", "PB11KSL", "PB12KSL"],
+        "lighted": ["PB11L", "PB12L", "PB11LS", "PB12LS", "PB11LSL", "PB12LSL"],
+        "ring_illuminated": ["PB11RE", "PB12RE", "PB11REL", "PB12REL"],
+        "specific_models": ["PB11S80", "PB12S80", "PB11S82", "PB12S82", "PB12PB"]
+      },
+      "safety_note": "MTL suffix = turn-to-release (IEC 60947-5-5 compliant e-stop). M suffix = mushroom head only (may or may not be IEC e-stop rated — check manufacturer model). E-stop push buttons must be tagged SF per AS4024.1601.",
+      "safety_tag_override": "SF"
+    },
+
+    "PC": {
+      "type": "power_connector",
+      "description": "Panel / equipment connector. PC11/PC12 = type variants. L suffix = locking.",
+      "tag_prefix": "XP",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "PE": {
+      "type": "protective_earth_terminal",
+      "description": "PE / earth terminal block. B16 = 16mm² busbar. PE2/PE3/PE4 = 2/3/4-wire configurations. R suffix = reversed orientation.",
+      "tag_prefix": "PE",
+      "safety_relevant": true,
+      "compliance_type": "other",
+      "safety_note": "PE terminal continuity is a safety requirement under AS/NZS 3000 and AS4024. Must be documented in panel schedule."
+    },
+
+    "PS": {
+      "type": "power_supply",
+      "description": "DC power supply / SMPS. PS11/PS12 = single/dual output variants.",
+      "tag_prefix": "UG",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "PW": {
+      "type": "power_wiring",
+      "description": "Power wiring symbol / incoming supply. G4 = 4-group. 1PH / 3PH = single / three-phase.",
+      "tag_prefix": "W",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "PX": {
+      "type": "variable_speed_drive",
+      "description": "Variable frequency drive (VFD) / inverter. PX11 = standard drive frame, PX12 = larger frame. Drive-type suffixes: I/IN3=inverter output, M/M3=motor side, C=converter/rectifier, U=universal, TS=terminal strip view. 3/3R suffix = 3-phase / 3-phase reversed.",
+      "tag_prefix": "UF",
+      "safety_relevant": true,
+      "compliance_type": "drive",
+      "safety_note": "STO (Safe Torque Off) and other safety functions (SS1, SS2, SOS, SLS) per IEC 61800-5-2 must be explicitly shown as separate signal connections. The PX symbol represents the drive body only — STO wiring must be shown connecting to the safety controller. Verify STO category meets PLr requirement."
+    },
+
+    "RT": {
+      "type": "rectifier",
+      "description": "Rectifier / DC supply bridge.",
+      "tag_prefix": "VC",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "SS": {
+      "type": "selector_switch",
+      "description": "Selector / rotary switch. SS11 = 2-position, SS12 = 3-position, SS21/SS22 = 2-row variants. Numeric suffix = contact count. L=left-hold, R=right-hold, NL=no-latch, B=boot-guard, F=flush. S## = specific catalogue models.",
+      "tag_prefix": "SA",
+      "safety_relevant": true,
+      "compliance_type": "other",
+      "safety_note": "Key-operated selector switches (must check title block for 'key' designation) are commonly used as mode selectors in safety circuits. Position must be monitored if used to select a safety mode (AS4024.1503)."
+    },
+
+    "SV": {
+      "type": "solenoid_valve",
+      "description": "Solenoid valve. Y1=2/2 way, Y1A=2/2 spring return, Y3=3/2 way, Y4=4/2 way.",
+      "tag_prefix": "YV",
+      "safety_relevant": true,
+      "compliance_type": "other",
+      "safety_note": "Pneumatic/hydraulic solenoid valves in safety functions must be spring-return (de-energise to safe state) per AS4024.1502/1503. Y1A is spring-return. Check valve failure mode for category assessment."
+    },
+
+    "SW": {
+      "type": "switch",
+      "description": "General-purpose switch (toggle / rocker). SW11/SW12 = NO/NC variants. S77 = specific model.",
+      "tag_prefix": "SA",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "T": {
+      "type": "terminal_block",
+      "description": "Terminal block. T0002=standard feed-through, T0W02=with wire marker, T0_02=2-wire, T0_LGENERIC=generic label terminal, T1002=test-point terminal.",
+      "tag_prefix": "XT",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "TC": {
+      "type": "terminal_cover",
+      "description": "Terminal cover / end-stop for terminal rail.",
+      "tag_prefix": "XT",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "TD": {
+      "type": "timer_relay",
+      "description": "Timer relay. TD1=1-function, TD21/TD22=dual-function. Mode: F=on-delay, N=off-delay, DOO=door-open off-delay.",
+      "tag_prefix": "KT",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "TS": {
+      "type": "terminal_strip",
+      "description": "Terminal strip / marshalling block. TS11/TS12 = single/double row. S59C = 59-way with cover.",
+      "tag_prefix": "XT",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "VM": {
+      "type": "voltmeter",
+      "description": "Panel-mount voltmeter.",
+      "tag_prefix": "PV",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    },
+
+    "XF": {
+      "type": "transformer",
+      "description": "Transformer. XF1=control transformer, CT=current transformer, CTR=CT reversed, P3=3-phase power transformer.",
+      "tag_prefix": "T",
+      "safety_relevant": false,
+      "compliance_type": "other"
+    }
+  },
+
+  "safety_relevant_summary": {
+    "e_stop": ["PB (MTL/M/ML/PM variants)"],
+    "interlock": ["LS (limit switch / guard interlock)", "FT (foot switch)"],
+    "contactor": ["MS (motor starter / safety contactor)"],
+    "drive": ["PX (VFD with STO)"],
+    "safety_relay": [],
+    "safety_plc": [],
+    "gaps": [
+      "No dedicated safety relay symbol (Pilz PNOZsigma, SICK Flexi, etc.) — uses CR1 with safety tag",
+      "No dedicated safety PLC symbol — not present in library",
+      "No light curtain / AOPD symbol (IEC 61496) — not present in library",
+      "No AS4024.1602 two-hand control symbol — not present in library"
+    ]
+  },
+
+  "compliance_type_index": {
+    "e_stop": ["PB"],
+    "interlock": ["LS", "FT"],
+    "contactor": ["MS"],
+    "drive": ["PX"],
+    "safety_relay": [],
+    "safety_plc": [],
+    "sensor": ["LS"],
+    "other": ["AM","AN","BE","CB","CR","DS","FL","FS","FU","GND","LR","LT","MO","OL","PC","PE","PS","PW","RT","SS","SV","SW","T","TC","TD","TS","VM","XF"]
+  }
+}

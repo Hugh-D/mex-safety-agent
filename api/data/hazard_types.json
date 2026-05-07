@@ -1,0 +1,42 @@
+{
+  "hazard_types": [
+    "Crushing",
+    "Impact",
+    "Entanglement",
+    "Drawing-in",
+    "Friction and abrasion",
+    "Burn/Scald",
+    "Cutting",
+    "Shearing",
+    "Slipping",
+    "Tripping",
+    "Falling",
+    "Being run over",
+    "Ejection of parts",
+    "Loss of stability",
+    "Electrical shock",
+    "Electrocution",
+    "Noise",
+    "Vibration",
+    "Radiation",
+    "Dust/fume inhalation",
+    "Contact with hazardous substances"
+  ],
+  "common_tasks": [
+    "Clean Jam during production",
+    "Clear a jam during production / maintenance",
+    "Change blade during production",
+    "Production/Maintenance",
+    "Routine maintenance",
+    "Setup/changeover",
+    "Cleaning",
+    "Inspection"
+  ],
+  "common_modes": [
+    "Operation",
+    "Maintenance",
+    "Setup",
+    "Cleaning",
+    "Fault finding"
+  ]
+}
