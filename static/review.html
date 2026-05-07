@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEX Safety Agent — Compliance Review</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">M</div>
+    <div>
+      <div class="nav-title">MEX Safety Agent</div>
+      <div class="nav-subtitle">Machine Safety Compliance Review</div>
+    </div>
+  </div>
+  <div class="steps" id="steps"></div>
+  <button class="btn-reset" onclick="resetProject()">+ New Project</button>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Step 2 — Compliance Review</h1>
+    <p>Enter project details and build the equipment list, then run the AI compliance review against AS4024 / ISO 13849-1.</p>
+  </div>
+
+  <div class="banner banner-info hidden" id="parse-banner">
+    ✓ Drawing data loaded from Step 1 — equipment list pre-populated from parsed components. Review and edit before submitting.
+  </div>
+
+  <!-- Project info -->
+  <div class="card">
+    <div class="card-header"><h2>Project Information</h2></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="required" for="project_number">Project Number</label>
+        <input type="text" id="project_number" placeholder="e.g. J#24171">
+      </div>
+      <div class="form-group">
+        <label class="required" for="client">Client</label>
+        <input type="text" id="client" placeholder="e.g. Garlo's Pies">
+      </div>
+      <div class="form-group span-2">
+        <label class="required" for="machine">Machine / System Description</label>
+        <input type="text" id="machine" placeholder="e.g. Project Pie Stage 1 — Conveyor and Ejector System">
+      </div>
+      <div class="form-group">
+        <label for="target_pl">Target Performance Level</label>
+        <select id="target_pl">
+          <option>PLa</option><option>PLb</option><option>PLc</option>
+          <option selected>PLd</option><option>PLe</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="target_category">Target Category</label>
+        <select id="target_category">
+          <option value="B">Category B</option>
+          <option value="1">Category 1</option>
+          <option value="2">Category 2</option>
+          <option value="3" selected>Category 3</option>
+          <option value="4">Category 4</option>
+        </select>
+      </div>
+      <div class="form-group span-2">
+        <label for="standards">Standards (comma-separated)</label>
+        <input type="text" id="standards" value="AS4024, ISO 13849-1:2015" placeholder="AS4024, ISO 13849-1:2015, IEC 62061">
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipment list -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Equipment List</h2>
+      <button class="btn btn-ghost btn-sm" id="add-row-btn">+ Add Row</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="eq-table">
+        <thead>
+          <tr>
+            <th style="width:130px">Manufacturer</th>
+            <th style="width:130px">Model</th>
+            <th>Function / Description</th>
+            <th style="width:80px">PL Rating</th>
+            <th style="width:55px">Qty</th>
+            <th style="width:40px"></th>
+          </tr>
+        </thead>
+        <tbody id="eq-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div class="card">
+    <div class="flex-between">
+      <div>
+        <h2>Run Review</h2>
+        <p>Claude will analyse the equipment list and project data against your target PL / Category.</p>
+      </div>
+      <button class="btn btn-primary" id="review-btn" style="min-width:160px">
+        ▶ Run Review
+      </button>
+    </div>
+    <div id="loading" class="hidden mt-1"></div>
+  </div>
+
+  <!-- Result -->
+  <div class="card hidden" id="result-panel"></div>
+
+  <div class="nav-row">
+    <a href="/" class="btn btn-ghost">← Back to Parse</a>
+    <button class="btn btn-cta hidden" id="export-btn">Continue to Export →</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/js/state.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/components.js"></script>
+<script src="/static/js/review.js"></script>
+</body>
+</html>

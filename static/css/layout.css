@@ -1,0 +1,53 @@
+/* MEX Safety Agent — Layout styles */
+
+/* ── Nav ── */
+.nav {
+  background: var(--navy); color: var(--white);
+  padding: 0 1.5rem; height: 54px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.nav-logo {
+  height: 28px; width: 28px; background: var(--lime);
+  border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 0.9rem; color: var(--white); letter-spacing: -0.05em;
+  flex-shrink: 0;
+}
+.nav-title {
+  font-size: 0.95rem; font-weight: 700; color: var(--white);
+  line-height: 1.1;
+}
+.nav-subtitle {
+  font-size: 0.68rem; color: rgba(255,255,255,0.55);
+  font-weight: 400; letter-spacing: 0.02em;
+}
+
+/* ── Page container ── */
+.page { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+
+/* ── Page header ── */
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { margin-bottom: 0.25rem; }
+.page-header p  { font-size: 0.9rem; }
+
+/* ── Nav row at bottom of page ── */
+.nav-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 1.5rem; padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Parse result preview table ── */
+.preview-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.preview-table th {
+  background: var(--grey-light); color: var(--grey-mid);
+  padding: 0.4rem 0.6rem; text-align: left; font-size: 0.75rem;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.preview-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--grey-light); }
+.preview-table tr:last-child td { border-bottom: none; }
+.preview-table tr:hover td { background: #f8f9fa; }

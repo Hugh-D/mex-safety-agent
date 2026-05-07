@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEX Safety Agent — Parse Drawing</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">M</div>
+    <div>
+      <div class="nav-title">MEX Safety Agent</div>
+      <div class="nav-subtitle">Machine Safety Compliance Review</div>
+    </div>
+  </div>
+  <div class="steps" id="steps"></div>
+  <button class="btn-reset" onclick="resetProject()">+ New Project</button>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Step 1 — Parse Drawing</h1>
+    <p>Upload an electrical drawing PDF to automatically extract safety-relevant components. This step is optional — you can skip it and manually enter equipment on the next page.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Upload PDF Drawing</h2></div>
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-icon">📄</div>
+      <div class="dropzone-text">Drag and drop your PDF here, or <strong>click to browse</strong></div>
+      <div class="dropzone-file"></div>
+    </div>
+    <input type="file" id="file-input" accept=".pdf" style="display:none">
+    <div class="flex-between mt-2">
+      <p class="text-sm text-mid">Max 20 MB · PDF only · Single or multi-page drawings</p>
+      <button class="btn btn-primary" id="upload-btn" disabled>
+        ↑ Parse Drawing
+      </button>
+    </div>
+    <div id="loading" class="hidden mt-1"></div>
+  </div>
+
+  <div class="card hidden" id="result-panel"></div>
+
+  <div class="nav-row">
+    <button class="btn btn-ghost" id="skip-btn">Skip this step →</button>
+    <button class="btn btn-cta" id="continue-btn" disabled>Continue to Review →</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/js/state.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/components.js"></script>
+<script src="/static/js/parse.js"></script>
+</body>
+</html>

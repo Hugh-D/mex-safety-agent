@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEX Safety Agent — Export PDF</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">M</div>
+    <div>
+      <div class="nav-title">MEX Safety Agent</div>
+      <div class="nav-subtitle">Machine Safety Compliance Review</div>
+    </div>
+  </div>
+  <div class="steps" id="steps"></div>
+  <button class="btn-reset" onclick="resetProject()">+ New Project</button>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Step 3 — Export PDF Report</h1>
+    <p>Review the summary below and download your branded MEX compliance report with redline findings.</p>
+  </div>
+
+  <!-- Summary -->
+  <div class="card">
+    <div class="card-header"><h2>Report Summary</h2></div>
+    <div id="summary"></div>
+  </div>
+
+  <!-- Options -->
+  <div class="card">
+    <div class="card-header"><h2>Export Options</h2></div>
+    <div id="parse-row" class="hidden" style="margin-bottom:0.75rem">
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.875rem;font-weight:500;color:var(--grey-dark)">
+        <input type="checkbox" id="include-parse" checked style="width:auto">
+        Include parsed drawing data and redline diagram in report
+      </label>
+    </div>
+    <div class="flex-between">
+      <p class="text-sm text-mid">The PDF includes the compliance findings, redline actions, equipment notes, and sign-off table.</p>
+      <button class="btn btn-cta" id="export-btn" style="min-width:200px">
+        ↓ Download PDF Report
+      </button>
+    </div>
+    <div id="loading" class="hidden mt-1"></div>
+  </div>
+
+  <div class="nav-row">
+    <a href="/review.html" class="btn btn-ghost">← Back to Review</a>
+    <button class="btn btn-ghost" id="new-btn">Start New Review</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/js/state.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/components.js"></script>
+<script src="/static/js/export.js"></script>
+</body>
+</html>

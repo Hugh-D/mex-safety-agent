@@ -1,12 +1,13 @@
 # Dependencies
 node_modules/
-venv/
-venv311/
+venv*/
 __pycache__/
 *.pyc
+*.pyo
 
-# Environment
+# Environment / secrets
 .env
+.env.*
 .env.local
 
 # IDE
@@ -36,3 +37,7 @@ outputs/
 # Database
 *.db
 *.sqlite3
+data/equipment_library.db
+
+# Logs
+*.log
