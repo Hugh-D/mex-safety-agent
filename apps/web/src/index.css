@@ -442,6 +442,136 @@ nav button.active {
   opacity: 0.8;
 }
 
+/* ── DXF attachment ── */
+.dxf-attach-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.dxf-attach-btn {
+  background: white;
+  color: #002559;
+  border: 1.5px dashed #b0c4de;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dxf-attach-btn:hover {
+  border-color: #002559;
+  background: #f0f4ff;
+}
+
+.dxf-clear-btn {
+  background: transparent;
+  color: #8a9ab0;
+  border: none;
+  padding: 4px 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.dxf-clear-btn:hover {
+  background: #fdecea;
+  color: #c62828;
+}
+
+.dxf-attach-hint {
+  font-size: 0.8rem;
+  color: #8a9ab0;
+}
+
+/* ── DXF parse results ── */
+.dxf-section {
+  border-color: #c8d8ea;
+}
+
+.dxf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dxf-header h3 {
+  margin: 0;
+}
+
+.dxf-toggle {
+  font-size: 0.8rem;
+  color: #6b8299;
+}
+
+.dxf-stats-row {
+  display: flex;
+  gap: 12px;
+  margin: 14px 0 4px;
+  flex-wrap: wrap;
+}
+
+.dxf-stat {
+  background: #f6f8fb;
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.dxf-stat-highlight {
+  background: #e8f5e1;
+  border: 1px solid #a5d6a7;
+}
+
+.dxf-stat-warn {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+}
+
+.dxf-stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #002559;
+}
+
+.dxf-stat-label {
+  font-size: 0.75rem;
+  color: #6b8299;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.library-gaps,
+.unknown-blocks {
+  margin-top: 14px;
+  font-size: 0.88rem;
+  color: #4a6080;
+}
+
+.library-gaps ul {
+  margin: 6px 0 0;
+  padding-left: 1.2rem;
+}
+
+.library-gaps li {
+  margin-bottom: 4px;
+  color: #e65100;
+}
+
+.unknown-list {
+  color: #8a9ab0;
+  font-family: monospace;
+  font-size: 0.82rem;
+}
+
 /* ── Print styles ── */
 .print-only { display: none; }
 

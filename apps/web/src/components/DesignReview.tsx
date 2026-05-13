@@ -1,6 +1,6 @@
 import { useRef, useState } from "react"
-import type { DrawingAnalysisResponse } from "../services/api"
-import { analyseDrawing } from "../services/api"
+import type { DrawingAnalysisResponse, DxfParseResponse } from "../services/api"
+import { analyseDrawing, parseDxf } from "../services/api"
 
 const PL_OPTIONS = ["PLa", "PLb", "PLc", "PLd", "PLe"]
 const CAT_OPTIONS = ["Cat B", "Cat 1", "Cat 2", "Cat 3", "Cat 4"]
@@ -41,34 +41,51 @@ function RichText({ text, className }: { text: string; className?: string }) {
 
 export default function DesignReview() {
   const fileRef = useRef<HTMLInputElement>(null)
+  const dxfRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [dxfFile, setDxfFile] = useState<File | null>(null)
   const [drawingTitle, setDrawingTitle] = useState("")
   const [targetPl, setTargetPl] = useState("PLd")
   const [targetCategory, setTargetCategory] = useState("Cat 3")
   const [context, setContext] = useState("")
   const [loading, setLoading] = useState(false)
+  const [loadingStage, setLoadingStage] = useState("")
+  const [dxfResult, setDxfResult] = useState<DxfParseResponse | null>(null)
+  const [dxfExpanded, setDxfExpanded] = useState(false)
   const [result, setResult] = useState<DrawingAnalysisResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   function handleFileDrop(e: React.DragEvent) {
     e.preventDefault()
     const dropped = e.dataTransfer.files[0]
-    if (dropped) setFile(dropped)
+    if (!dropped) return
+    if (dropped.name.toLowerCase().endsWith(".dxf")) setDxfFile(dropped)
+    else setFile(dropped)
   }
 
   async function handleAnalyse() {
-    if (!file) { setError("Please upload a drawing first."); return }
+    if (!file) { setError("Please upload a drawing image first."); return }
     if (!drawingTitle.trim()) { setError("Drawing title is required."); return }
     setError(null)
     setLoading(true)
     setResult(null)
+    setDxfResult(null)
     try {
-      const res = await analyseDrawing(file, drawingTitle.trim(), targetPl, targetCategory, context || undefined)
+      let parsedDxf: DxfParseResponse | undefined
+      if (dxfFile) {
+        setLoadingStage("Parsing DXF…")
+        parsedDxf = await parseDxf(dxfFile)
+        setDxfResult(parsedDxf)
+        setDxfExpanded(true)
+      }
+      setLoadingStage("Analysing drawing…")
+      const res = await analyseDrawing(file, drawingTitle.trim(), targetPl, targetCategory, context || undefined, dxfFile || undefined)
       setResult(res)
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setLoading(false)
+      setLoadingStage("")
     }
   }
 
@@ -103,6 +120,18 @@ export default function DesignReview() {
             onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
         </div>
 
+        <div className="dxf-attach-row">
+          <button className="dxf-attach-btn" type="button" onClick={() => dxfRef.current?.click()}>
+            {dxfFile ? `✓ ${dxfFile.name}` : "+ Attach source DXF (optional)"}
+          </button>
+          {dxfFile && (
+            <button className="dxf-clear-btn" type="button" onClick={() => setDxfFile(null)}>✕</button>
+          )}
+          <input ref={dxfRef} type="file" accept=".dxf" style={{ display: "none" }}
+            onChange={(e) => e.target.files?.[0] && setDxfFile(e.target.files[0])} />
+          <span className="dxf-attach-hint">Enriches the AI analysis with a verified component list from your CAD file.</span>
+        </div>
+
         <div className="form-row">
           <label>
             <span>Drawing Title</span>
@@ -135,9 +164,61 @@ export default function DesignReview() {
         {error && <p className="error-msg">{error}</p>}
 
         <button onClick={handleAnalyse} disabled={loading} className="primary-btn">
-          {loading ? "Analysing…" : "Analyse Drawing"}
+          {loading ? loadingStage || "Analysing…" : "Analyse Drawing"}
         </button>
       </section>
+
+      {/* DXF parse results */}
+      {dxfResult && (
+        <section className="result-section dxf-section">
+          <div className="dxf-header" onClick={() => setDxfExpanded((x) => !x)}>
+            <h3>DXF Component Inventory — {dxfResult.sourceFilename}</h3>
+            <span className="dxf-toggle">{dxfExpanded ? "▲ Collapse" : "▼ Expand"}</span>
+          </div>
+          <div className="dxf-stats-row">
+            <DxfStat label="Total inserts" value={dxfResult.totalInserts} />
+            <DxfStat label="Recognised" value={dxfResult.recognisedCount} />
+            <DxfStat label="Safety-relevant" value={dxfResult.safetyCount} highlight />
+            <DxfStat label="Unknown blocks" value={dxfResult.unknownBlockCount} warn={dxfResult.unknownBlockCount > 0} />
+          </div>
+          {dxfExpanded && (
+            <>
+              {dxfResult.components.filter((c) => c.safetyRelevant).length > 0 && (
+                <table className="components-table">
+                  <thead>
+                    <tr><th>Tag</th><th>Description</th><th>Type</th><th>Compliance</th><th>Note</th></tr>
+                  </thead>
+                  <tbody>
+                    {dxfResult.components.filter((c) => c.safetyRelevant).map((c, i) => (
+                      <tr key={i}>
+                        <td><strong>{c.tag || c.blockName}</strong></td>
+                        <td>{c.description}</td>
+                        <td>{c.componentType}</td>
+                        <td>{c.complianceType}</td>
+                        <td>{c.safetyNote ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {dxfResult.libraryGaps.length > 0 && (
+                <div className="library-gaps">
+                  <strong>Library gaps</strong>
+                  <ul>
+                    {dxfResult.libraryGaps.map((g, i) => <li key={i}>{g}</li>)}
+                  </ul>
+                </div>
+              )}
+              {dxfResult.unknownBlocks.length > 0 && (
+                <div className="unknown-blocks">
+                  <strong>Unrecognised blocks ({dxfResult.unknownBlocks.length}):</strong>{" "}
+                  <span className="unknown-list">{dxfResult.unknownBlocks.join(", ")}</span>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {/* Results */}
       {result && verdict && (
@@ -246,6 +327,15 @@ function Tile({ label, value }: { label: string; value: string }) {
     <div className="arch-tile">
       <span className="arch-tile-value">{value}</span>
       <span className="arch-tile-label">{label}</span>
+    </div>
+  )
+}
+
+function DxfStat({ label, value, highlight, warn }: { label: string; value: number; highlight?: boolean; warn?: boolean }) {
+  return (
+    <div className={`dxf-stat ${highlight ? "dxf-stat-highlight" : ""} ${warn ? "dxf-stat-warn" : ""}`}>
+      <span className="dxf-stat-value">{value}</span>
+      <span className="dxf-stat-label">{label}</span>
     </div>
   )
 }

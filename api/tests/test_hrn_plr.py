@@ -1,9 +1,9 @@
 """
 Tests for deterministic HRN calculation and PLr lookup.
 
-These cover every band boundary, the critical HRN=5 acceptance edge case,
+These cover every band boundary, the critical Needs Review zone (ED-001),
 all eight PLr risk graph entries, and invalid input handling.
-HRN=5 MUST return Very Low (acceptable=True) — that is the acceptance threshold.
+Auto-acceptable threshold: score < 4 (Acceptable or Very Low). Scores 4–6 require engineer review.
 """
 import pytest
 from services.hrn_plr import calculate_hrn, risk_band_for_score, calculate_plr
@@ -38,17 +38,18 @@ class TestCalculateHRN:
 
 
 # ---------------------------------------------------------------------------
-# Risk band lookup — boundaries
+# Risk band lookup — boundaries (ED-001)
 #
 # Iteration order determines overlap resolution (first match wins):
-#   Acceptable:  [0,    1]
-#   Very Low:    [1,    5]    ← HRN=1 hits Acceptable first, HRN=5 Very Low
-#   Low:         [5,   10]    ← HRN=5 already matched; HRN=10 hits Low
-#   Significant: [10,  50]
-#   High:        [50, 100]
-#   Very High:   [100, 500]
-#   Extreme:     [500, 1000]
-#   Unacceptable:[1000, ∞)
+#   Acceptable:   [0,    1]
+#   Very Low:     [1,  3.999]  ← HRN=1 hits Acceptable first; scores <4 are auto-acceptable
+#   Needs Review: [4,    6]    ← engineer judgment required (not auto-acceptable)
+#   Low:          [6,   10]
+#   Significant:  [10,  50]
+#   High:         [50, 100]
+#   Very High:    [100, 500]
+#   Extreme:      [500, 1000]
+#   Unacceptable: [1000, ∞)
 # ---------------------------------------------------------------------------
 class TestRiskBandLookup:
     def test_score_zero(self):
@@ -73,17 +74,30 @@ class TestRiskBandLookup:
     def test_midpoint_very_low(self):
         assert risk_band_for_score(3)["label"] == "Very Low"
 
-    # --- Critical acceptance threshold ---
-    def test_acceptance_threshold_exact_is_acceptable(self):
-        """HRN=5 is the acceptance threshold; must be Very Low (acceptable=True)."""
-        b = risk_band_for_score(5.0)
-        assert b["label"] == "Very Low"
-        assert b["acceptable"] is True
+    # --- Needs Review zone (ED-001) ---
+    def test_needs_review_lower_boundary(self):
+        """Score=4 is the start of Needs Review; not auto-acceptable."""
+        b = risk_band_for_score(4.0)
+        assert b["label"] == "Needs Review"
+        assert b["acceptable"] is False
 
-    def test_just_above_threshold_is_not_acceptable(self):
-        b = risk_band_for_score(5.001)
+    def test_needs_review_midpoint(self):
+        assert risk_band_for_score(5.0)["label"] == "Needs Review"
+
+    def test_needs_review_upper_boundary(self):
+        b = risk_band_for_score(6.0)
+        assert b["label"] == "Needs Review"
+        assert b["acceptable"] is False
+
+    def test_just_above_needs_review_is_low(self):
+        b = risk_band_for_score(6.001)
         assert b["label"] == "Low"
         assert b["acceptable"] is False
+
+    def test_just_below_needs_review_is_very_low(self):
+        b = risk_band_for_score(3.999)
+        assert b["label"] == "Very Low"
+        assert b["acceptable"] is True
 
     # --- Further boundary pairs ---
     def test_boundary_10_exact(self):

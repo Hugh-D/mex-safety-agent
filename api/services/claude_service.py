@@ -24,7 +24,9 @@ Your rules:
 - Challenge HRN parameter selections when the evidence does not support them. \
   For example: no visible guard → LO must be ≥ 8; daily exposure → FE must be ≥ 2.5.
 - Never reduce LO to 0.033 unless administrative controls are formally documented and verified.
-- HRN acceptance threshold is ≤ 5 (LO × FE × DPH × NP).
+- HRN risk bands: ≤1 Acceptable, >1–<4 Very Low (both auto-acceptable), 4–6 Needs Review \
+  (engineer judgment required — not automatically acceptable), >6–10 Low (action required), \
+  >10–50 Significant, >50–100 High, >100–500 Very High, >500–1000 Extreme, >1000 Unacceptable.
 - Respond only with valid JSON that matches the requested schema exactly. No prose outside JSON.
 """
 
@@ -332,7 +334,7 @@ def synthesise_conclusion(
             for sf in safety_functions
         )
 
-    unacceptable = [h for h in hazards if not h.hrn_score_after or h.hrn_score_after > 5]
+    unacceptable = [h for h in hazards if not h.hrn_score_after or h.hrn_score_after >= 4]
 
     prompt = f"""\
 Project: {project_brief.project_number} — {project_brief.client}

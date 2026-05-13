@@ -133,6 +133,7 @@ export async function analyseDrawing(
   targetPl: string,
   targetCategory: string,
   context?: string,
+  dxfFile?: File,
 ): Promise<DrawingAnalysisResponse> {
   const formData = new FormData()
   formData.append("file", file)
@@ -140,8 +141,41 @@ export async function analyseDrawing(
   formData.append("target_pl", targetPl)
   formData.append("target_category", targetCategory)
   if (context) formData.append("context", context)
+  if (dxfFile) formData.append("dxf_file", dxfFile)
 
   const response = await fetch(`${API_BASE}/compliance/drawing`, { method: "POST", body: formData })
   if (!response.ok) await throwWithDetail(response, "Drawing analysis failed")
+  return response.json()
+}
+
+export interface DxfComponent {
+  blockName: string
+  tag: string
+  description: string
+  location: string
+  componentType: string
+  complianceType: string
+  safetyRelevant: boolean
+  safetyNote: string | null
+}
+
+export interface DxfParseResponse {
+  sourceFilename: string
+  dxfVersion: string
+  totalInserts: number
+  recognisedCount: number
+  safetyCount: number
+  unknownBlockCount: number
+  components: DxfComponent[]
+  unknownBlocks: string[]
+  libraryGaps: string[]
+  contextText: string
+}
+
+export async function parseDxf(file: File): Promise<DxfParseResponse> {
+  const formData = new FormData()
+  formData.append("file", file)
+  const response = await fetch(`${API_BASE}/compliance/dxf`, { method: "POST", body: formData })
+  if (!response.ok) await throwWithDetail(response, "DXF parse failed")
   return response.json()
 }

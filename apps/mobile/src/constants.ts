@@ -75,7 +75,8 @@ export function calcHrn(LO: number, FE: number, DPH: number, NP: number): number
 
 export function getRiskBand(score: number): { label: string; color: string; acceptable: boolean } {
   if (score <= 1) return { label: "Acceptable", color: "#00B050", acceptable: true }
-  if (score <= 5) return { label: "Very Low", color: "#92D050", acceptable: true }
+  if (score < 4) return { label: "Very Low", color: "#92D050", acceptable: true }
+  if (score <= 6) return { label: "Needs Review", color: "#FFA000", acceptable: false }
   if (score <= 10) return { label: "Low", color: "#FFFF00", acceptable: false }
   if (score <= 50) return { label: "Significant", color: "#FFC000", acceptable: false }
   if (score <= 100) return { label: "High", color: "#FF6600", acceptable: false }

@@ -132,6 +132,13 @@ export default function HazardFormScreen({
   const [selectedMeasures, setSelectedMeasures] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  const [postLO, setPostLO] = useState(aiResult.hrnSuggestions.LO.value)
+  const [postFE, setPostFE] = useState(aiResult.hrnSuggestions.FE.value)
+  const [postDPH, setPostDPH] = useState(aiResult.hrnSuggestions.DPH.value)
+  const [postNP, setPostNP] = useState(aiResult.hrnSuggestions.NP.value)
+  const postHrnScore = calcHrn(postLO, postFE, postDPH, postNP)
+  const postBand = getRiskBand(postHrnScore)
+
   const challengedParams = new Set(validation?.challengedParameters.map((c) => c.parameter) ?? [])
 
   function toggleHazardType(ht: string) {
@@ -165,8 +172,8 @@ export default function HazardFormScreen({
       )
       setValidation(result)
 
-      // Auto-fetch risk reduction if HRN > 5
-      if (hrnScore > 5) {
+      // Auto-fetch risk reduction for Needs Review and above
+      if (hrnScore >= 4) {
         setLoadingRR(true)
         try {
           const rr = await recommendRiskReduction(
@@ -205,6 +212,11 @@ export default function HazardFormScreen({
             .flatMap((m) => m.standardsReferences)
             .filter((v, i, a) => a.indexOf(v) === i)
         : [],
+      ...(rrResult && {
+        hrnAfter: { LO: postLO, FE: postFE, DPH: postDPH, NP: postNP },
+        hrnScoreAfter: postHrnScore,
+        riskBandAfter: postBand.label,
+      }),
       aiValidationFlags: validation?.flags ?? [],
       aiRecommendations: rrResult?.measures.map((m) => m.description) ?? [],
     }
@@ -284,7 +296,8 @@ export default function HazardFormScreen({
         <View style={[styles.hrnBadge, { backgroundColor: band.color }]}>
           <Text style={styles.hrnScore}>{hrnScore}</Text>
           <Text style={styles.hrnBand}>{band.label}</Text>
-          {!band.acceptable && <Text style={styles.hrnAction}>Action required</Text>}
+          {band.label === "Needs Review" && <Text style={styles.hrnAction}>Engineer review required</Text>}
+          {band.label !== "Needs Review" && !band.acceptable && <Text style={styles.hrnAction}>Action required</Text>}
         </View>
 
         {/* Validate button */}
@@ -349,6 +362,24 @@ export default function HazardFormScreen({
               </TouchableOpacity>
             ))}
           </View>
+        )}
+
+        {/* Post-mitigation HRN */}
+        {rrResult && (
+          <>
+            <Text style={styles.sectionLabel}>Post-Mitigation HRN Parameters</Text>
+            <HrnPicker param="LO" value={postLO} onChange={setPostLO} />
+            <HrnPicker param="FE" value={postFE} onChange={setPostFE} />
+            <HrnPicker param="DPH" value={postDPH} onChange={setPostDPH} />
+            <HrnPicker param="NP" value={postNP} onChange={setPostNP} />
+            <View style={[styles.hrnBadge, { backgroundColor: postBand.color }]}>
+              <Text style={styles.hrnScore}>{postHrnScore}</Text>
+              <Text style={styles.hrnBand}>{postBand.label} (after measures)</Text>
+              {postBand.label === "Needs Review" && <Text style={styles.hrnAction}>Engineer review required</Text>}
+              {postBand.label !== "Needs Review" && !postBand.acceptable && <Text style={styles.hrnAction}>Action required</Text>}
+              {postBand.acceptable && <Text style={styles.hrnAction}>Residual risk acceptable</Text>}
+            </View>
+          </>
         )}
 
         {/* Notes */}
