@@ -11,9 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
+import { Audio } from "expo-av"
 import type { HazardEntry } from "../../../../../shared/types/assessment"
-import type { PhotoAnalysisResult, HRNValidationResult, RiskReductionResult } from "../services/api"
-import { validateHrn, recommendRiskReduction } from "../services/api"
+import type { PhotoAnalysisResult, HRNValidationResult, RiskReductionResult, VoiceTranscriptResult } from "../services/api"
+import { validateHrn, recommendRiskReduction, transcribeVoice } from "../services/api"
 import {
   HAZARD_TYPES,
   HRN_PARAMS,
@@ -139,6 +140,11 @@ export default function HazardFormScreen({
   const postHrnScore = calcHrn(postLO, postFE, postDPH, postNP)
   const postBand = getRiskBand(postHrnScore)
 
+  const [recording, setRecording] = useState<Audio.Recording | null>(null)
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing" | "done">("idle")
+  const [voiceResult, setVoiceResult] = useState<VoiceTranscriptResult | null>(null)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+
   const challengedParams = new Set(validation?.challengedParameters.map((c) => c.parameter) ?? [])
 
   function toggleHazardType(ht: string) {
@@ -189,6 +195,57 @@ export default function HazardFormScreen({
     } finally {
       setValidating(false)
     }
+  }
+
+  async function startRecording() {
+    setVoiceError(null)
+    try {
+      const { granted } = await Audio.requestPermissionsAsync()
+      if (!granted) { setVoiceError("Microphone permission denied"); return }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
+      const { recording: rec } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+      )
+      setRecording(rec)
+      setVoiceState("recording")
+    } catch (e) {
+      setVoiceError(`Could not start recording: ${(e as Error).message}`)
+    }
+  }
+
+  async function stopRecording() {
+    if (!recording) return
+    setVoiceState("processing")
+    try {
+      await recording.stopAndUnloadAsync()
+      const uri = recording.getURI()
+      setRecording(null)
+      if (!uri) throw new Error("No audio URI returned")
+      const result = await transcribeVoice(uri, siteLabel)
+      setVoiceResult(result)
+      setVoiceState("done")
+    } catch (e) {
+      setVoiceError(`Transcription failed: ${(e as Error).message}`)
+      setVoiceState("idle")
+    }
+  }
+
+  function applyVoiceNote() {
+    if (!voiceResult) return
+    if (voiceResult.suggestedMode && MODES.includes(voiceResult.suggestedMode)) {
+      setMode(voiceResult.suggestedMode)
+    }
+    if (voiceResult.suggestedTask) setTask(voiceResult.suggestedTask)
+    if (voiceResult.hazardTypes.length > 0) {
+      setSelectedHazardTypes((prev) => [
+        ...new Set([...prev, ...voiceResult.hazardTypes.filter((ht) => HAZARD_TYPES.includes(ht))]),
+      ])
+    }
+    if (voiceResult.typedNotes) {
+      setNotes((n) => (n ? `${n}\n${voiceResult.typedNotes}` : voiceResult.typedNotes!))
+    }
+    setVoiceResult(null)
+    setVoiceState("idle")
   }
 
   function buildEntry(): HazardEntry {
@@ -244,6 +301,51 @@ export default function HazardFormScreen({
             </View>
           ))}
         </View>
+
+        {/* Voice note */}
+        <Text style={styles.sectionLabel}>Voice Note</Text>
+        {voiceState === "idle" && (
+          <TouchableOpacity style={styles.micBtn} onPress={startRecording}>
+            <Text style={styles.micIcon}>🎙</Text>
+            <Text style={styles.micBtnText}>Record voice note</Text>
+          </TouchableOpacity>
+        )}
+        {voiceState === "recording" && (
+          <TouchableOpacity style={[styles.micBtn, styles.micBtnRecording]} onPress={stopRecording}>
+            <Text style={styles.micIcon}>⏹</Text>
+            <Text style={styles.micBtnText}>Recording… tap to stop</Text>
+          </TouchableOpacity>
+        )}
+        {voiceState === "processing" && (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={NAVY} />
+            <Text style={styles.loadingText}>Transcribing…</Text>
+          </View>
+        )}
+        {voiceState === "done" && voiceResult && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Transcript</Text>
+            <Text style={styles.voiceTranscript}>{voiceResult.transcript}</Text>
+            {(voiceResult.suggestedMode || voiceResult.suggestedTask || voiceResult.hazardTypes.length > 0) && (
+              <Text style={styles.voiceExtracted}>
+                {[
+                  voiceResult.suggestedMode && `Mode: ${voiceResult.suggestedMode}`,
+                  voiceResult.suggestedTask && `Task: ${voiceResult.suggestedTask}`,
+                  voiceResult.hazardTypes.length > 0 && `Hazards: ${voiceResult.hazardTypes.join(", ")}`,
+                ].filter(Boolean).join("  ·  ")}
+              </Text>
+            )}
+            <View style={styles.voiceActions}>
+              <TouchableOpacity style={styles.applyBtn} onPress={applyVoiceNote}>
+                <Text style={styles.applyBtnText}>Apply to form</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setVoiceResult(null); setVoiceState("idle") }}>
+                <Text style={styles.discardText}>Discard</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        {voiceError && <Text style={styles.error}>{voiceError}</Text>}
 
         {/* Mode */}
         <Text style={styles.sectionLabel}>Mode</Text>
@@ -518,6 +620,32 @@ const styles = StyleSheet.create({
   measureMeta: { fontSize: 11, color: MID_GREY, marginTop: 2 },
   measureRefs: { fontSize: 10, color: LIME, marginTop: 2, fontWeight: "600" },
   error: { color: "#d32f2f", fontSize: 13, marginBottom: 12 },
+  micBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#dde3ef",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
+  },
+  micBtnRecording: { borderColor: "#d32f2f", backgroundColor: "#fff5f5" },
+  micIcon: { fontSize: 20 },
+  micBtnText: { fontSize: 14, color: NAVY, fontWeight: "600" },
+  voiceTranscript: { color: "#334e68", fontSize: 13, lineHeight: 19, marginBottom: 10 },
+  voiceExtracted: { fontSize: 11, color: MID_GREY, marginBottom: 10, lineHeight: 16 },
+  voiceActions: { flexDirection: "row", alignItems: "center", gap: 16 },
+  applyBtn: {
+    backgroundColor: LIME,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  applyBtnText: { color: NAVY, fontWeight: "700", fontSize: 13 },
+  discardText: { color: MID_GREY, fontSize: 13 },
   saveBtn: {
     backgroundColor: LIME,
     borderRadius: 12,

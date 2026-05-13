@@ -173,6 +173,42 @@ export async function validateHrn(
   }
 }
 
+export interface VoiceTranscriptResult {
+  transcript: string
+  suggestedMode: string | null
+  suggestedTask: string | null
+  hazardTypes: string[]
+  typedNotes: string | null
+}
+
+export async function transcribeVoice(
+  audioUri: string,
+  siteLabel: string,
+): Promise<VoiceTranscriptResult> {
+  const formData = new FormData()
+
+  if (audioUri.startsWith("blob:") || audioUri.startsWith("data:")) {
+    const blob = await fetch(audioUri).then((r) => r.blob())
+    const ext = blob.type.includes("mp4") ? "m4a" : "webm"
+    formData.append("file", new File([blob], `voice.${ext}`, { type: blob.type }))
+  } else {
+    formData.append("file", { uri: audioUri, type: "audio/mp4", name: "voice.m4a" } as any)
+  }
+
+  formData.append("site_label", siteLabel)
+
+  const response = await fetch(`${API_BASE}/ai/voice`, { method: "POST", body: formData })
+  if (!response.ok) throw new Error(`Voice transcription failed: ${response.statusText}`)
+  const raw = await response.json()
+  return {
+    transcript: raw.transcript,
+    suggestedMode: raw.suggested_mode,
+    suggestedTask: raw.suggested_task,
+    hazardTypes: raw.hazard_types ?? [],
+    typedNotes: raw.typed_notes,
+  }
+}
+
 export async function recommendRiskReduction(
   location: string,
   mode: string,

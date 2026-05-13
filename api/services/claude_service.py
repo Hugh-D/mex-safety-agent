@@ -307,7 +307,63 @@ Return JSON:
 
 
 # ---------------------------------------------------------------------------
-# 4. Conclusion synthesis
+# 4. Voice field extraction
+# ---------------------------------------------------------------------------
+def extract_voice_fields(
+    transcript: str,
+    site_label: str,
+) -> tuple[dict[str, Any], AIInteractionLog]:
+    """
+    Extract structured hazard form fields from a voice note transcript.
+    HRN parameters are intentionally excluded — engineer must set those.
+
+    Returns (result dict matching VoiceExtractionResult schema, audit log).
+    """
+    client = _client()
+
+    prompt = f"""\
+Site: {site_label}
+Voice note transcript: {transcript}
+
+Extract structured fields from this field engineer's voice note.
+
+Allowed modes (use exact string or null): Operation, Maintenance, Setup, Cleaning, Fault finding
+Allowed hazard_types (use exact strings only):
+Crushing, Impact, Entanglement, Drawing-in, Friction and abrasion, Burn/Scald,
+Cutting, Shearing, Slipping, Tripping, Falling, Being run over, Ejection of parts,
+Loss of stability, Electrical shock, Electrocution, Noise, Vibration, Radiation,
+Dust/fume inhalation, Contact with hazardous substances
+
+Return JSON:
+{{
+  "suggested_mode": "<mode string or null if not mentioned>",
+  "suggested_task": "<brief task description max 12 words, or null if not clear>",
+  "hazard_types": ["<only types explicitly mentioned or clearly implied>"],
+  "typed_notes": "<anything in the transcript that doesn't fit the above fields — verbatim context, observations, measurements, names — or null if nothing left>"
+}}
+
+Do not invent information not present in the transcript.
+"""
+
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=512,
+        system=[
+            {
+                "type": "text",
+                "text": _RISK_AGENT_SYSTEM,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    log = _make_log("extract_voice_fields", prompt, response)
+    return _parse_json(response.content[0].text), log
+
+
+# ---------------------------------------------------------------------------
+# 5. Conclusion synthesis
 # ---------------------------------------------------------------------------
 def synthesise_conclusion(
     project_brief: ProjectBrief,

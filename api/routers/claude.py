@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Any, Optional
 
 from models.schemas import HRNParameters, HazardEntry, ProjectBrief, SafetyFunctionSpec, ReportDraftRequest
-from services import claude_service
+from services import claude_service, voice_service
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -54,6 +54,14 @@ class RiskReductionResponse(BaseModel):
     measures: list[dict[str, Any]]
     target_hrn_achievable: bool
     notes: str
+
+
+class VoiceTranscriptResponse(BaseModel):
+    transcript: str
+    suggested_mode: Optional[str]
+    suggested_task: Optional[str]
+    hazard_types: list[str]
+    typed_notes: Optional[str]
 
 
 class ConclusionRequest(BaseModel):
@@ -122,6 +130,28 @@ def recommend_risk_reduction(request: RiskReductionRequest) -> RiskReductionResp
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
     log.info("AI audit: %s", ai_log.model_dump_json())
     return RiskReductionResponse(**result)
+
+
+@router.post("/ai/voice", response_model=VoiceTranscriptResponse)
+async def transcribe_voice_note(
+    file: UploadFile = File(...),
+    site_label: str = Form(...),
+) -> VoiceTranscriptResponse:
+    """Transcribe a voice note and extract structured hazard form fields."""
+    audio_bytes = await file.read()
+    filename = file.filename or "voice.webm"
+    try:
+        result, ai_log = voice_service.transcribe_voice(audio_bytes, filename, site_label)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Voice service error: {exc}")
+    log.info("AI audit (voice): %s", ai_log.model_dump_json())
+    return VoiceTranscriptResponse(
+        transcript=result.get("transcript", ""),
+        suggested_mode=result.get("suggested_mode"),
+        suggested_task=result.get("suggested_task"),
+        hazard_types=result.get("hazard_types", []),
+        typed_notes=result.get("typed_notes"),
+    )
 
 
 @router.post("/ai/conclusion", response_model=ConclusionResponse)
