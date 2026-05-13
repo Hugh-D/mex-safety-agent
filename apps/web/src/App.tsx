@@ -67,18 +67,18 @@ function RiskGraph({ activeSeverity, activeFrequency, activeAvoidance }: {
   )?.pl ?? null
 
   // Layout constants
-  const W = 560; const H = 280
+  const W = 560; const H = 310
   const col = [40, 160, 280, 400, 510]
 
   type Node = { id: string; x: number; y: number; label: string; sub?: string; active?: boolean }
   const nodes: Node[] = [
-    { id: "start", x: col[0], y: H / 2, label: "Risk" },
+    { id: "start", x: col[0], y: 140, label: "Risk" },
     { id: "S1", x: col[1], y: 80,  label: "S1", sub: "Slight", active: activeSeverity === "S1" },
     { id: "S2", x: col[1], y: 200, label: "S2", sub: "Serious", active: activeSeverity === "S2" },
     { id: "S1F1", x: col[2], y: 50,  label: "F1", sub: "Seldom",  active: activeSeverity === "S1" && activeFrequency === "F1" },
     { id: "S1F2", x: col[2], y: 110, label: "F2", sub: "Frequent", active: activeSeverity === "S1" && activeFrequency === "F2" },
     { id: "S2F1", x: col[2], y: 170, label: "F1", sub: "Seldom",  active: activeSeverity === "S2" && activeFrequency === "F1" },
-    { id: "S2F2", x: col[2], y: 230, label: "F2", sub: "Frequent", active: activeSeverity === "S2" && activeFrequency === "F2" },
+    { id: "S2F2", x: col[2], y: 270, label: "F2", sub: "Frequent", active: activeSeverity === "S2" && activeFrequency === "F2" },
     { id: "S1F1P1", x: col[3], y: 30,  label: "P1", sub: "Possible", active: activeSeverity === "S1" && activeFrequency === "F1" && activeAvoidance === "P1" },
     { id: "S1F1P2", x: col[3], y: 70,  label: "P2", sub: "Not poss.", active: activeSeverity === "S1" && activeFrequency === "F1" && activeAvoidance === "P2" },
     { id: "S1F2P1", x: col[3], y: 110, label: "P1", sub: "Possible", active: activeSeverity === "S1" && activeFrequency === "F2" && activeAvoidance === "P1" },
@@ -86,7 +86,7 @@ function RiskGraph({ activeSeverity, activeFrequency, activeAvoidance }: {
     { id: "S2F1P1", x: col[3], y: 190, label: "P1", sub: "Possible", active: activeSeverity === "S2" && activeFrequency === "F1" && activeAvoidance === "P1" },
     { id: "S2F1P2", x: col[3], y: 225, label: "P2", sub: "Not poss.", active: activeSeverity === "S2" && activeFrequency === "F1" && activeAvoidance === "P2" },
     { id: "S2F2P1", x: col[3], y: 255, label: "P1", sub: "Possible", active: activeSeverity === "S2" && activeFrequency === "F2" && activeAvoidance === "P1" },
-    { id: "S2F2P2", x: col[3], y: H - 10, label: "P2", sub: "Not poss.", active: activeSeverity === "S2" && activeFrequency === "F2" && activeAvoidance === "P2" },
+    { id: "S2F2P2", x: col[3], y: 285, label: "P2", sub: "Not poss.", active: activeSeverity === "S2" && activeFrequency === "F2" && activeAvoidance === "P2" },
   ]
 
   const edges: [string, string][] = [

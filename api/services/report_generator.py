@@ -64,6 +64,7 @@ PAGE_W, PAGE_H = A4
 BAND_COLOURS: dict[str, colors.HexColor] = {
     "Acceptable": colors.HexColor("#00B050"),
     "Very Low": colors.HexColor("#92D050"),
+    "Needs Review": colors.HexColor("#FFA000"),
     "Low": colors.HexColor("#FFFF00"),
     "Significant": colors.HexColor("#FFC000"),
     "High": colors.HexColor("#FF6600"),
@@ -71,7 +72,7 @@ BAND_COLOURS: dict[str, colors.HexColor] = {
     "Extreme": colors.HexColor("#CC0000"),
     "Unacceptable": colors.HexColor("#990000"),
 }
-LIGHT_BANDS = {"Acceptable", "Very Low", "Low"}
+LIGHT_BANDS = {"Acceptable", "Very Low", "Needs Review", "Low"}
 
 CONTACT_LINE = (
     "1800 MEX 24/7  |  PO Box 6425 Silverwater NSW 2128  |  admin@mexeng.com.au"
@@ -335,8 +336,9 @@ def _section_methodology(s: dict) -> list:
     items += [Paragraph("2.2 Risk Bands", s["h3"])]
     band_rows = [
         ("0 – 1", "Acceptable", True, "#00B050"),
-        ("1 – 5", "Very Low", True, "#92D050"),
-        ("5 – 10", "Low", False, "#FFFF00"),
+        ("1 – 4", "Very Low", True, "#92D050"),
+        ("4 – 6", "Needs Review", False, "#FFA000"),
+        ("6 – 10", "Low", False, "#FFFF00"),
         ("10 – 50", "Significant", False, "#FFC000"),
         ("50 – 100", "High", False, "#FF6600"),
         ("100 – 500", "Very High", False, "#FF0000"),
@@ -379,7 +381,7 @@ def _section_hazards(hazards: List[HazardEntry], s: dict) -> list:
         return items
 
     tw = PAGE_W - 2 * MARGIN
-    col_w = [22 * mm, 30 * mm, 40 * mm, 10 * mm, 10 * mm, 10 * mm, 10 * mm, 14 * mm, tw - 156 * mm]
+    col_w = [22 * mm, 30 * mm, 40 * mm, 10 * mm, 10 * mm, 10 * mm, 10 * mm, 14 * mm, tw - 146 * mm]
 
     for h in hazards:
         items.append(Paragraph(f"3.{h.id}  {h.location}", s["h3"]))
