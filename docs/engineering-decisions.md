@@ -142,4 +142,27 @@ This file records every significant decision point built into the app — why it
 
 ---
 
-*Last updated: 2026-05-13. Add new entries as decisions are made during development.*
+## ED-010 — Standards Docs Loaded Selectively Per AI Endpoint
+
+**Decision:** Each Claude AI function loads only the AS/NZS 4024 standards docs relevant to its task. Docs are read from `docs/` on first call and cached in-process for the server lifetime.
+
+**Mapping:**
+
+| Endpoint | Standards loaded |
+|---|---|
+| `analyse_photo` | 1302, 1303 |
+| `validate_hrn` | 1302, 1303, 1501, 1801, 1803 |
+| `recommend_risk_reduction` | 1201, 1501, 1503, 1703, 1801, 1803 |
+| `extract_voice_fields` | none |
+| `synthesise_conclusion` | all 9 docs |
+
+**Why:** Loading all 9 docs (~8,000 lines) into every prompt would add significant token cost to lightweight calls like photo analysis that don't need minimum gap tables. Selective loading keeps context lean per call while still giving the AI authoritative reference for edge cases in each function. `synthesise_conclusion` gets everything because conclusions must reference any standard the assessment touched.
+
+**How engineers should respond:**
+- The AI's recommendations are backed by the specific standards listed above for each action — engineers can cite this mapping when explaining how the platform works.
+- If a recommendation seems to reference the wrong standard, check whether that standard is in the loaded set for that endpoint.
+- To add a doc to an endpoint's set, update `_system_blocks(...)` call in `api/services/claude_service.py` and add an entry here.
+
+---
+
+*Last updated: 2026-05-14. Add new entries as decisions are made during development.*

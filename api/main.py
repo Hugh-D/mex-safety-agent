@@ -17,9 +17,17 @@ app = FastAPI(
     description="Deterministic HRN, PLr, and report generation services for the MEX Safety Platform",
 )
 
+_DEFAULT_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:19006",
+    "http://localhost:19007",
+]
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+_allowed_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _DEFAULT_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:19006", "http://localhost:19007"],
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

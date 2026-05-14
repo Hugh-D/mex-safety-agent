@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import anthropic
@@ -13,6 +14,51 @@ from models.schemas import AIInteractionLog, HazardEntry, HRNParameters, Project
 from services.standards import field_agent_standards_line
 
 MODEL = "claude-sonnet-4-6"
+
+# ---------------------------------------------------------------------------
+# Standards doc loader — lazy, in-process cache
+# ---------------------------------------------------------------------------
+_DOCS_DIR = Path(__file__).resolve().parent.parent.parent / "docs"
+
+_DOC_FILES: dict[str, str] = {
+    "1201": "AS4024_1201_safety_of_machines_general_principles_of_design.md",
+    "1302": "AS4024_1302_safety_of_machines_risk_assesments_reduction_of_risk.md",
+    "1303": "AS4024_1303_risk_assesment.md",
+    "1501": "AS4024_1501_Safety_Related_Parts_Control_Systems.md",
+    "1502": "AS4024_1502_Design_of_Safety_Related_Parts_Control_Systems_Validation.md",
+    "1503": "AS4024_1503_Safety_Related_Parts_Control_Systems_Principles_For_Design.md",
+    "1703": "AS4024_1703_access_openings.md",
+    "1801": "AS4024_1801_safety_distances.md",
+    "1803": "AS4024_1803_minimum_gaps.md",
+}
+
+_DOC_CACHE: dict[str, str] = {}
+
+
+def _load_docs(*keys: str) -> str:
+    parts = []
+    for key in keys:
+        if key not in _DOC_CACHE:
+            path = _DOCS_DIR / _DOC_FILES[key]
+            if path.exists():
+                _DOC_CACHE[key] = path.read_text(encoding="utf-8")
+        content = _DOC_CACHE.get(key)
+        if content:
+            parts.append(content)
+    return "\n\n---\n\n".join(parts)
+
+
+def _system_blocks(base_system: str, *doc_keys: str) -> list[dict]:
+    """Build the system prompt block list, appending standards docs as a cached second block."""
+    blocks: list[dict] = [
+        {"type": "text", "text": base_system, "cache_control": {"type": "ephemeral"}}
+    ]
+    docs = _load_docs(*doc_keys)
+    if docs:
+        blocks.append(
+            {"type": "text", "text": f"## AS/NZS 4024 Standards Reference\n\n{docs}", "cache_control": {"type": "ephemeral"}}
+        )
+    return blocks
 
 # Standards line generated from api/data/standards_catalogue.json — do not edit inline.
 _RISK_AGENT_SYSTEM = f"""\
@@ -151,13 +197,7 @@ NP: 1=1-2 persons, 2=3-7 persons, 4=8-15 persons, 8=16-50 persons, 12=50+ person
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,
-        system=[
-            {
-                "type": "text",
-                "text": _RISK_AGENT_SYSTEM,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
+        system=_system_blocks(_RISK_AGENT_SYSTEM, "1302", "1303"),
         messages=[
             {
                 "role": "user",
@@ -229,13 +269,7 @@ If all parameters are well-supported, return an empty challenged_parameters arra
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,
-        system=[
-            {
-                "type": "text",
-                "text": _RISK_AGENT_SYSTEM,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
+        system=_system_blocks(_RISK_AGENT_SYSTEM, "1302", "1303", "1501", "1801", "1803"),
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -292,13 +326,7 @@ Return JSON:
     response = client.messages.create(
         model=MODEL,
         max_tokens=768,
-        system=[
-            {
-                "type": "text",
-                "text": _RISK_AGENT_SYSTEM,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
+        system=_system_blocks(_RISK_AGENT_SYSTEM, "1201", "1501", "1503", "1703", "1801", "1803"),
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -420,13 +448,7 @@ Return JSON:
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,
-        system=[
-            {
-                "type": "text",
-                "text": _CONCLUSION_SYSTEM,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
+        system=_system_blocks(_CONCLUSION_SYSTEM, "1201", "1302", "1303", "1501", "1502", "1503", "1703", "1801", "1803"),
         messages=[{"role": "user", "content": prompt}],
     )
 

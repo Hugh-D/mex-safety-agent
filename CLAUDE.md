@@ -26,32 +26,78 @@ AI = brain (validates, cross-references, recommends, generates). Engineer = eyes
 ## Architecture
 
 ```
-mex_safety_agent/
-├── main.py                    FastAPI app, routing, serves static frontend
-├── models/__init__.py         Pydantic data models
+mex-safety-platform/
 ├── api/
-│   ├── routes/                Endpoint handlers
-│   └── data/
-│       ├── hrn_tables.json    HRN lookup tables
-│       └── plr_risk_graph.json  PLr risk graph data
-├── docs/
-│   ├── data-model.md          Full data model documentation
-│   ├── report-format.md       Standardised report structure spec
-│   ├── standards-reference.md Standards coverage matrix
-│   └── agent-personas.md      Agent system prompts and expert knowledge
-└── skills/*/SKILL.md          Individual agent skill definitions
+│   ├── main.py                        FastAPI app, 5 routers, env-configurable CORS
+│   ├── models/schemas.py              Pydantic data models
+│   ├── routers/
+│   │   ├── assessment.py              HRN + PLr endpoints
+│   │   ├── claude.py                  5 AI endpoints (photo, hrn/validate, risk-reduction, voice, conclusion)
+│   │   ├── compliance.py              Drawing + document review endpoints
+│   │   ├── project.py                 Project CRUD
+│   │   └── report.py                  PDF report generation
+│   ├── services/
+│   │   ├── claude_service.py          5 Claude AI functions — each loads specific standards docs
+│   │   ├── voice_service.py           OpenAI gpt-4o-mini-transcribe → Claude field extraction
+│   │   ├── compliance_service.py      Drawing vision + design doc review
+│   │   ├── hrn_plr.py                 Deterministic HRN + PLr lookup (never LLM)
+│   │   ├── report_generator.py        Branded PDF via ReportLab, DRAFT watermark
+│   │   ├── project_store.py           Flat-file JSON persistence, per-project thread locks
+│   │   ├── standards.py               Standards catalogue loader
+│   │   ├── symbol_lookup.py           DXF block name → type info
+│   │   └── dxf_parser.py              Parses DXF bytes, classifies via symbol_lookup
+│   ├── data/
+│   │   ├── hrn_tables.json            HRN parameter lookup tables
+│   │   ├── plr_risk_graph.json        PLr risk graph S/F/P data
+│   │   ├── standards_catalogue.json   Single source of truth for all standards + years
+│   │   └── projects/                  Flat-file project JSON store
+│   └── tests/                         92 passing pytest tests
+├── apps/
+│   ├── mobile/src/                    Expo React Native — 5-screen field capture flow
+│   │   ├── screens/HomeScreen.tsx
+│   │   ├── screens/NewProjectScreen.tsx
+│   │   ├── screens/CaptureScreen.tsx
+│   │   ├── screens/HazardFormScreen.tsx  Voice mic + Apply/Discard UI
+│   │   ├── screens/ReviewScreen.tsx
+│   │   └── services/api.ts
+│   └── web/src/                       Vite React — desktop review tool
+│       ├── App.tsx                    Calculator, Projects, Drawing Review, Document Review tabs
+│       ├── components/DesignReview.tsx
+│       ├── components/DocumentReview.tsx
+│       └── services/api.ts
+├── docs/                              Standards reference docs + project docs
+│   ├── AS4024_1201_*.md               General principles of design
+│   ├── AS4024_1302_*.md               Risk assessment — hazardous substances
+│   ├── AS4024_1303_*.md               Risk assessment practical guidance
+│   ├── AS4024_1501_*.md               SRP/CS general principles
+│   ├── AS4024_1502_*.md               SRP/CS validation
+│   ├── AS4024_1503_*.md               SRP/CS design principles (partial)
+│   ├── AS4024_1703_*.md               Access openings
+│   ├── AS4024_1801_*.md               Safety distances (≡ ISO 13857:2008)
+│   ├── AS4024_1803_*.md               Minimum gaps (≡ ISO 13854)
+│   ├── AS4024_Cross_Reference_List.md Unified B.1/B.2/B.3 cross-reference
+│   ├── engineering-decisions.md       All significant design decisions with rationale
+│   ├── data-model.md                  Full data model documentation
+│   ├── report-format.md               Standardised report structure spec
+│   ├── standards-reference.md         Standards coverage matrix
+│   └── agent-personas.md              Agent system prompts and expert knowledge
+└── symbols/Elec_Symbols.dxf           Electrical symbol library (6.7 MB — should be Git LFS)
 ```
+
+---
 
 ## Two Modes
 
 **Field Mode — Risk Assessment**
-- Photo capture + hazard identification
-- HRN scoring: LO × FE × DPH × NP (tables in `api/data/hrn_tables.json`)
-- PLr determination: ISO 13849-1 risk graph S/F/P (lookup in `api/data/plr_risk_graph.json`)
-- Branded report generation
+- Photo capture + hazard identification (`POST /api/ai/photo`)
+- Voice note capture → structured field extraction (`POST /api/ai/voice`)
+- HRN scoring: LO × FE × DPH × NP (deterministic — `api/data/hrn_tables.json`)
+- PLr determination: ISO 13849-1 risk graph S/F/P (deterministic — `api/data/plr_risk_graph.json`)
+- Branded PDF report generation (`POST /api/report/draft`)
 
 **Design Mode — Compliance Review**
-- Drawing parsing and component extraction
+- Drawing parsing and component extraction (`POST /api/compliance/dxf`)
+- Document review (`POST /api/compliance/design-review`)
 - Gap analysis against target PL/Category
 - Redline report output matching MEX's branded report structure (see `docs/report-format.md`)
 
@@ -59,17 +105,76 @@ The risk assessment produces a PLr target. The compliance review checks designs 
 
 ---
 
+## AI Standards Loading
+
+Each Claude AI function loads specific AS/NZS 4024 standards docs into its context. Docs are read once and cached in-process. This is the authoritative mapping — do not change without updating `engineering-decisions.md`.
+
+| Endpoint | Standards loaded |
+|---|---|
+| `analyse_photo` | 1302, 1303 |
+| `validate_hrn` | 1302, 1303, 1501, 1801, 1803 |
+| `recommend_risk_reduction` | 1201, 1501, 1503, 1703, 1801, 1803 |
+| `extract_voice_fields` | none (extraction only) |
+| `synthesise_conclusion` | all 9 docs |
+
+---
+
 ## Standards Coverage
-AS/NZS 4024 series, ISO 13849-1:2015, IEC 62061, IEC 61800-5-2, EN ISO 14119, ISO 14120, Australian WHS legislation.
+AS/NZS 4024 series (1201, 1302, 1303, 1501, 1502, 1503, 1703, 1801, 1803), ISO 13849-1:2015, IEC 62061, IEC 61800-5-2, EN ISO 14119, ISO 14120, Australian WHS legislation.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Yes | Claude AI calls |
+| `OPENAI_API_KEY` | Yes | Voice transcription (gpt-4o-mini-transcribe) |
+| `API_PORT` | No | API port (default 8000) |
+| `CORS_ORIGINS` | No | Comma-separated allowed origins. Defaults to localhost:5173, 19006, 19007 |
+| `AUDIT_COMPLETE` | No | Set `true` to remove DRAFT watermark from PDF reports |
+
+---
+
+## Running the Project
+
+```bash
+# API
+cd api && uvicorn main:app --reload --port 8000
+
+# Mobile (browser)
+cd apps/mobile && npx expo start --web
+
+# Web
+cd apps/web && npm run dev
+
+# Tests
+cd api && python -m pytest tests/ -v
+```
 
 ---
 
 ## Build Sequence
-1. ✅ Project structure created
-2. ⏳ Symbol library (pending from engineering team)
-3. 🔜 Report generation engine (next)
-4. Field capture workflow
-5. Design review mode
+1. ✅ Project structure
+2. ✅ Symbol library — DXF parser + symbol_lookup built; physical symbols pending engineering team
+3. ✅ Report generation engine — branded PDF, DRAFT watermark, HRN risk bands
+4. ✅ Field capture workflow — 5-screen mobile flow, photo, voice, HRN, PLr, report
+5. ⏳ Design review mode — compliance service + UI exists; needs further development
+6. 🔜 PostgreSQL migration — deferred, pre-deployment only
+7. 🔜 Training pack — engineering-decisions.md is primary source material
+
+---
+
+## Known Issues / Deferred
+- PDF text overflow in some table cells (acknowledged, deferred)
+- Mobile report download on native device needs expo-file-system (web download works)
+- Conclusion synthesis too verbose — needs MEX team redline example before tightening
+- No CI/CD, no Dockerfile
+- No rate-limiting or API auth — cost-liability vector, must resolve before production
+- `symbols/Elec_Symbols.dxf` is 6.7 MB committed to git — should be Git LFS
+- `package-lock.json` modified by expo-av install — not yet committed
+- AS4024.1503 doc is partial — clauses 1–11 + annexes A–B only
+- AS4024.1100 Table B.1 reach distance data not yet built — must be deterministic lookup, not LLM
 
 ---
 
@@ -79,9 +184,11 @@ Read on demand — do not preload everything.
 - `docs/report-format.md` — Standardised report structure
 - `docs/standards-reference.md` — Standards coverage matrix
 - `docs/agent-personas.md` — Agent system prompts and expert knowledge
-- `skills/*/SKILL.md` — Individual agent skill definitions
+- `docs/engineering-decisions.md` — All significant design decisions with rationale
 
 ---
 
 ## Lessons Learned
-_Capture errors and corrections here as they occur._
+- **Restart the API server after adding new routes.** New FastAPI routes are not picked up by a running server even with `--reload` if the server was started before the route file existed. Confirm routes are registered via `/openapi.json` before testing.
+- **System prompt updates are reactive only.** Do not speculatively update `claude_service.py` system prompts — only update when new standards docs or confirmed requirements land.
+- **Standards docs go in `docs/` and are loaded selectively per endpoint** — not globally into every prompt. See the AI Standards Loading table above.

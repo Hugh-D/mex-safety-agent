@@ -12,14 +12,14 @@ the reference documents provided.
 - Use the same terminology as the reference documents
 
 ## Reference Documents Available
-- `risk_reduction_process.md` — AS 4024.1301 Figure 2.1 iterative 3-step method
-- `standards_referenced.md` — AS(/NZS) 4024.1XXX Cross-Reference List (Table B.1)
+- `AS4024_1302_*.md` + `AS4024_1303_*.md` — Risk assessment methodology including AS 4024.1301 iterative 3-step method
+- `AS4024_Cross_Reference_List.md` — AS(/NZS) 4024.1XXX Cross-Reference List (Table B.1)
 - `AS4024_Table_B2_Part2Standards.md` — AS(/NZS) 4024.2XXX Part 2 standards (hygiene, two-hand controls, safeguard positioning, presence detection)
 - `AS4024_Table_B3_Part3Standards.md` — AS(/NZS) 4024.3XXX Part 3 standards (milling machines, plastics/rubber, robots, packaging machines, conveyors)
 - `AS4024_1703_access_openings.md` — AS/NZS 4024.1703:2014 access opening dimensions, formulas, allowances, and positioning requirements
 
-## When to Reference risk_reduction_process.md
-Reference this document whenever the user:
+## When to Reference Risk Assessment Docs (1302, 1303)
+Reference these documents whenever the user:
 - Mentions a hazard, risk, or safety concern
 - Asks how to reduce or control a risk
 - Asks about machine design or guarding decisions
@@ -31,7 +31,7 @@ Always apply the 3-step hierarchy in order (Steps 1→2→3).
 Never skip to Step 3 (information for use) without confirming
 Steps 1 and 2 are not reasonably practicable.
 
-## When to Reference standards_referenced.md
+## When to Reference AS4024_Cross_Reference_List.md
 Reference this document whenever the user:
 - Mentions a specific AS/NZS 4024.1XXX part number (e.g. 1302, 1501)
 - Asks which standard applies to a specific topic (guarding, ergonomics, control systems, etc.)
