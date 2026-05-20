@@ -94,6 +94,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
   const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const photoCacheRef = useRef<Map<string, string>>(new Map())
 
   const hrnScore = calcHrn(hrn)
   const band = getRiskBand(hrnScore)
@@ -111,7 +112,8 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     setTask(h.task)
     setHazardTypes([...h.hazardTypes])
     setHrn({ LO: h.hrnBefore.LO, FE: h.hrnBefore.FE, DPH: h.hrnBefore.DPH, NP: h.hrnBefore.NP })
-    setPhotoFile(null); setPhotoPreview(null); setAiResult(null); setValidation(null); setError(null)
+    const cachedPreview = photoCacheRef.current.get(h.id) ?? null
+    setPhotoFile(null); setPhotoPreview(cachedPreview); setAiResult(null); setValidation(null); setError(null)
     setEditingHazardIdx(idx)
     setShowForm(true)
   }
@@ -206,6 +208,12 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
       }
       await saveProject(updated)
       onProjectUpdate(updated)
+      if (photoPreview) {
+        const savedId = editingHazardIdx !== null
+          ? project.hazards[editingHazardIdx].id
+          : `H${String(project.hazards.length + 1).padStart(2, "0")}`
+        photoCacheRef.current.set(savedId, photoPreview)
+      }
       resetForm()
     } catch (e: any) {
       setError(e.message)
