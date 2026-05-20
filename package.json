@@ -11,6 +11,16 @@
   "scripts": {
     "mobile": "cd apps/mobile && npm start",
     "web": "cd apps/web && npm start",
-    "api": "cd api && python main.py"
+    "api": "cd api && python main.py",
+    "postinstall": "patch-package"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
+  },
+  "overrides": {
+    "expo": "~54.0.0",
+    "react": "~19.1.0",
+    "react-dom": "~19.1.0",
+    "expo-asset": "~12.0.0"
   }
 }

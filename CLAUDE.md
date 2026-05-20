@@ -31,15 +31,15 @@ mex-safety-platform/
 │   ├── main.py                        FastAPI app, 5 routers, env-configurable CORS
 │   ├── models/schemas.py              Pydantic data models
 │   ├── routers/
-│   │   ├── assessment.py              HRN + PLr endpoints
+│   │   ├── assessment.py              HRN + PLr + safety distance endpoints (AS4024.1801)
 │   │   ├── claude.py                  5 AI endpoints (photo, hrn/validate, risk-reduction, voice, conclusion)
-│   │   ├── compliance.py              Drawing + document review endpoints
+│   │   ├── compliance.py              Drawing + document review + topology extraction + compliance report download
 │   │   ├── project.py                 Project CRUD
 │   │   └── report.py                  PDF report generation
 │   ├── services/
 │   │   ├── claude_service.py          5 Claude AI functions — each loads specific standards docs
 │   │   ├── voice_service.py           OpenAI gpt-4o-mini-transcribe → Claude field extraction
-│   │   ├── compliance_service.py      Drawing vision + design doc review
+│   │   ├── compliance_service.py      Drawing vision + design doc review + extract_topology()
 │   │   ├── hrn_plr.py                 Deterministic HRN + PLr lookup (never LLM)
 │   │   ├── report_generator.py        Branded PDF via ReportLab, DRAFT watermark
 │   │   ├── project_store.py           Flat-file JSON persistence, per-project thread locks
@@ -60,10 +60,11 @@ mex-safety-platform/
 │   │   ├── screens/HazardFormScreen.tsx  Voice mic + Apply/Discard UI
 │   │   ├── screens/ReviewScreen.tsx
 │   │   └── services/api.ts
-│   └── web/src/                       Vite React — desktop review tool
+│   └── web/src/                       Vite React — desktop review tool (run from apps/web/)
 │       ├── App.tsx                    Calculator, Projects, Drawing Review, Document Review tabs
-│       ├── components/DesignReview.tsx
+│       ├── components/DesignReview.tsx   PDF + Word compliance report download
 │       ├── components/DocumentReview.tsx
+│       ├── components/ProjectView.tsx    Project detail: hazard list, add hazard, AI photo + HRN validation
 │       └── services/api.ts
 ├── docs/                              Standards reference docs + project docs
 │   ├── AS4024_1201_*.md               General principles of design
@@ -93,12 +94,17 @@ mex-safety-platform/
 - Voice note capture → structured field extraction (`POST /api/ai/voice`)
 - HRN scoring: LO × FE × DPH × NP (deterministic — `api/data/hrn_tables.json`)
 - PLr determination: ISO 13849-1 risk graph S/F/P (deterministic — `api/data/plr_risk_graph.json`)
+- Safety distance lookups: AS/NZS 4024.1801 Tables 1–7 (`POST /api/assessment/safety-distances/*`)
 - Branded PDF report generation (`POST /api/report/draft`)
+- Mobile: expandable hazard cards with full HRN breakdown, edit-hazard flow, PDF download via expo-file-system + expo-sharing
+- Web: project detail view (ProjectView.tsx) with add-hazard form, AI photo analysis, AI HRN validation
 
 **Design Mode — Compliance Review**
 - Drawing parsing and component extraction (`POST /api/compliance/dxf`)
 - Document review (`POST /api/compliance/design-review`)
+- Topology extraction runs in parallel with compliance analysis when DXF provided (`extract_topology`)
 - Gap analysis against target PL/Category
+- PDF + Word compliance report download (`POST /api/compliance/report`)
 - Redline report output matching MEX's branded report structure (see `docs/report-format.md`)
 
 The risk assessment produces a PLr target. The compliance review checks designs against it.
@@ -158,23 +164,24 @@ cd api && python -m pytest tests/ -v
 1. ✅ Project structure
 2. ✅ Symbol library — DXF parser + symbol_lookup built; physical symbols pending engineering team
 3. ✅ Report generation engine — branded PDF, DRAFT watermark, HRN risk bands
-4. ✅ Field capture workflow — 5-screen mobile flow, photo, voice, HRN, PLr, report
-5. ⏳ Design review mode — compliance service + UI exists; needs further development
-6. 🔜 PostgreSQL migration — deferred, pre-deployment only
-7. 🔜 Training pack — engineering-decisions.md is primary source material
+4. ✅ Field capture workflow — 5-screen mobile flow, photo, voice, HRN, PLr, report; expandable hazard cards + edit-hazard flow; PDF download on device via expo-file-system + expo-sharing
+5. ✅ Web risk assessment — ProjectView with add-hazard, AI photo analysis, AI HRN validation, report download
+6. ⏳ Design review mode — compliance service + topology extraction + PDF/Word download exists; needs further testing and UX polish
+7. 🔜 PostgreSQL migration — deferred, pre-deployment only
+8. 🔜 Training pack — engineering-decisions.md is primary source material
 
 ---
 
 ## Known Issues / Deferred
 - PDF text overflow in some table cells (acknowledged, deferred)
-- Mobile report download on native device needs expo-file-system (web download works)
+- ~~Mobile report download on native device~~ — DONE: `expo-file-system/legacy` downloads to `cacheDirectory`, `expo-sharing` opens share sheet; user selects PDF viewer
 - Conclusion synthesis too verbose — needs MEX team redline example before tightening
 - No CI/CD, no Dockerfile
 - No rate-limiting or API auth — cost-liability vector, must resolve before production
 - `symbols/Elec_Symbols.dxf` is 6.7 MB committed to git — should be Git LFS
-- `package-lock.json` modified by expo-av install — not yet committed
 - AS4024.1503 doc is partial — clauses 1–11 + annexes A–B only
-- AS4024.1100 Table B.1 reach distance data not yet built — must be deterministic lookup, not LLM
+- Web hazard photos not persisted — `photos: []` stored in JSON; blob URL only lives in current browser session. Pre-production: add server-side photo storage endpoint.
+- All changes uncommitted — 26 modified files, several untracked
 
 ---
 
@@ -192,3 +199,4 @@ Read on demand — do not preload everything.
 - **Restart the API server after adding new routes.** New FastAPI routes are not picked up by a running server even with `--reload` if the server was started before the route file existed. Confirm routes are registered via `/openapi.json` before testing.
 - **System prompt updates are reactive only.** Do not speculatively update `claude_service.py` system prompts — only update when new standards docs or confirmed requirements land.
 - **Standards docs go in `docs/` and are loaded selectively per endpoint** — not globally into every prompt. See the AI Standards Loading table above.
+- **Vite dev server must be started from `apps/web/`**, not the project root. Running `vite` from the root serves 404 on all routes — `index.html` is not found. Always: `cd apps/web && npm run dev`.

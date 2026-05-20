@@ -165,4 +165,30 @@ This file records every significant decision point built into the app — why it
 
 ---
 
-*Last updated: 2026-05-14. Add new entries as decisions are made during development.*
+## ED-011 — Topology Extraction Runs in Parallel with Compliance Analysis
+
+**Decision:** When a DXF file is uploaded alongside a drawing image, `extract_topology()` runs concurrently with `analyse_drawing()` using `asyncio.gather`. The topology result is attached to the `DrawingAnalysisResponse` alongside the compliance analysis — no extra wait time.
+
+**Why:** Topology extraction and compliance analysis both require reading the image and are fully independent of each other. Running them sequentially would double the wall-clock time for users who provide a DXF. `asyncio.gather` lets them overlap completely, with the combined response only as slow as the slower of the two.
+
+**How engineers should respond:**
+- Topology data appears in the response only when a DXF is provided — the `topology` field is `null` otherwise.
+- If topology extraction fails (e.g. AI returns malformed JSON), the compliance analysis still succeeds; `topology` is `null` and the error is logged.
+- Do not add synchronous blocking calls between the two tasks — they must remain independent.
+
+---
+
+## ED-012 — Mobile PDF Download: expo-file-system/legacy + expo-sharing
+
+**Decision:** On native device, the PDF report is downloaded to `FileSystem.cacheDirectory` using `expo-file-system/legacy`'s `downloadAsync`, then opened via `expo-sharing`'s `shareAsync`. This replaces the earlier approach of generating a blob in the browser.
+
+**Why:** Expo's standard `expo-file-system` (v18+) removed `downloadAsync` from the default export. Using the `/legacy` sub-path restores it. `cacheDirectory` is writable without additional permissions on both iOS and Android. `shareAsync` opens the native share sheet, from which the user can pick a PDF viewer (Adobe Reader, iOS Files, etc.) or email the report.
+
+**How engineers should respond:**
+- Import from `expo-file-system/legacy`, not `expo-file-system`, or `downloadAsync` will be undefined.
+- The safe filename strips non-alphanumeric chars: `projectNumber.replace(/[^a-zA-Z0-9\-_. ]/g, "_")` — MEX project numbers like "J# 2357" become "J_ 2357" in the cache filename. The PDF content is unaffected.
+- Cache files are not permanent — they may be cleared by the OS. The report must be regenerated for a second share if the cache is cleared.
+
+---
+
+*Last updated: 2026-05-20. Add new entries as decisions are made during development.*
