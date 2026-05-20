@@ -425,6 +425,22 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
                         <span>{cp.reason}</span>
                       </div>
                     ))}
+                    <button
+                      type="button"
+                      className="pv-apply-ai-btn"
+                      onClick={() => {
+                        const next = { ...hrn }
+                        for (const cp of validation.challengedParameters) {
+                          if (cp.parameter === "LO") next.LO = cp.recommendedValue
+                          else if (cp.parameter === "FE") next.FE = cp.recommendedValue
+                          else if (cp.parameter === "DPH") next.DPH = cp.recommendedValue
+                          else if (cp.parameter === "NP") next.NP = cp.recommendedValue
+                        }
+                        setHrn(next)
+                      }}
+                    >
+                      Apply AI Suggestions
+                    </button>
                   </>
                 )}
                 {validation.overallComment && (

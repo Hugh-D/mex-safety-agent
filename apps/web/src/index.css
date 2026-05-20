@@ -686,6 +686,8 @@ nav button.active {
 .pv-challenged-row { background: white; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; line-height: 1.6; font-size: 0.88rem; }
 .pv-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .pv-form-actions .primary-btn { margin-top: 0; }
+.pv-apply-ai-btn { margin-top: 12px; background: #70bf54; color: #002559; font-weight: 700; font-size: 0.88rem; border: none; border-radius: 8px; padding: 9px 18px; cursor: pointer; display: inline-flex; align-items: center; }
+.pv-apply-ai-btn:hover { background: #5aaa3e; }
 
 /* ── Print styles ── */
 .print-only { display: none; }

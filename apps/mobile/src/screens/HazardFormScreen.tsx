@@ -460,6 +460,21 @@ export default function HazardFormScreen(props: Props) {
                 <Text style={styles.challengeReason}>{cp.reason}</Text>
               </View>
             ))}
+            {validation.challengedParameters.length > 0 && (
+              <Pressable
+                style={({ pressed }) => [styles.applyAiBtn, pressed && { opacity: 0.75 }]}
+                onPress={() => {
+                  for (const cp of validation.challengedParameters) {
+                    if (cp.parameter === "LO") setLO(cp.recommendedValue)
+                    else if (cp.parameter === "FE") setFE(cp.recommendedValue)
+                    else if (cp.parameter === "DPH") setDPH(cp.recommendedValue)
+                    else if (cp.parameter === "NP") setNP(cp.recommendedValue)
+                  }
+                }}
+              >
+                <Text style={styles.applyAiBtnText}>Apply AI Suggestions</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -640,6 +655,8 @@ const styles = StyleSheet.create({
   challengeParam: { fontWeight: "700", color: NAVY, fontSize: 12 },
   challengeText: { color: "#7a5c00", fontSize: 12, marginTop: 2 },
   challengeReason: { color: "#555", fontSize: 11, marginTop: 3 },
+  applyAiBtn: { marginTop: 14, backgroundColor: LIME, borderRadius: 8, paddingVertical: 10, alignItems: "center" as const },
+  applyAiBtnText: { color: NAVY, fontWeight: "700" as const, fontSize: 14 },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   loadingText: { color: MID_GREY, fontSize: 13 },
   rrNotes: { color: MID_GREY, fontSize: 12, marginBottom: 10 },
