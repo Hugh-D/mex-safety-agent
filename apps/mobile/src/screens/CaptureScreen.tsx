@@ -5,11 +5,11 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native"
 import * as ImagePicker from "expo-image-picker"
@@ -32,31 +32,51 @@ export default function CaptureScreen({ project, onBack, onAnalysed }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   async function pickFromCamera() {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync()
-    if (status !== "granted") {
-      Alert.alert("Camera Permission", "Camera access is required to capture hazard photos.")
-      return
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync()
+      if (status !== "granted") {
+        Alert.alert("Camera Permission", "Camera access is required to capture hazard photos.")
+        return
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: "images",
+        quality: 0.7,
+        allowsEditing: false,
+      })
+      if (result.canceled) return
+      const uri = result.assets?.[0]?.uri
+      if (!uri) {
+        Alert.alert("Camera Error", "No photo was returned. Please try again or use Choose from Library.")
+        return
+      }
+      setPhotoUri(uri)
+    } catch (e) {
+      Alert.alert("Camera Error", (e as Error).message ?? "Unknown error launching camera.")
     }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsEditing: false,
-    })
-    if (!result.canceled) setPhotoUri(result.assets[0].uri)
   }
 
   async function pickFromLibrary() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== "granted") {
-      Alert.alert("Photo Library", "Photo library access is required to select photos.")
-      return
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== "granted") {
+        Alert.alert("Photo Library", "Photo library access is required to select photos.")
+        return
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images",
+        quality: 0.7,
+        allowsEditing: false,
+      })
+      if (result.canceled) return
+      const uri = result.assets?.[0]?.uri
+      if (!uri) {
+        Alert.alert("Library Error", "No photo was returned. Please try again.")
+        return
+      }
+      setPhotoUri(uri)
+    } catch (e) {
+      Alert.alert("Library Error", (e as Error).message ?? "Unknown error opening library.")
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsEditing: false,
-    })
-    if (!result.canceled) setPhotoUri(result.assets[0].uri)
   }
 
   async function handleAnalyse() {
@@ -77,9 +97,9 @@ export default function CaptureScreen({ project, onBack, onAnalysed }: Props) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
+        <Pressable onPress={onBack}>
           <Text style={styles.back}>‹ Back</Text>
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.title}>Capture Hazard</Text>
         <Text style={styles.subtitle}>{project.projectBrief.projectNumber}</Text>
       </View>
@@ -89,21 +109,21 @@ export default function CaptureScreen({ project, onBack, onAnalysed }: Props) {
         {photoUri ? (
           <View style={styles.previewWrap}>
             <Image source={{ uri: photoUri }} style={styles.preview} resizeMode="cover" />
-            <TouchableOpacity style={styles.retakeBtn} onPress={() => setPhotoUri(null)}>
+            <Pressable style={({ pressed }) => [styles.retakeBtn, pressed && { opacity: 0.75 }]} onPress={() => setPhotoUri(null)}>
               <Text style={styles.retakeBtnText}>Retake</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.photoPlaceholder}>
             <Text style={styles.photoIcon}>📷</Text>
             <Text style={styles.photoHint}>No photo selected</Text>
             <View style={styles.photoActions}>
-              <TouchableOpacity style={styles.cameraBtn} onPress={pickFromCamera}>
+              <Pressable style={({ pressed }) => [styles.cameraBtn, pressed && { opacity: 0.75 }]} onPress={pickFromCamera}>
                 <Text style={styles.cameraBtnText}>Take Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.galleryBtn} onPress={pickFromLibrary}>
+              </Pressable>
+              <Pressable style={({ pressed }) => [styles.galleryBtn, pressed && { opacity: 0.75 }]} onPress={pickFromLibrary}>
                 <Text style={styles.galleryBtnText}>Choose from Library</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         )}
@@ -132,8 +152,8 @@ export default function CaptureScreen({ project, onBack, onAnalysed }: Props) {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TouchableOpacity
-          style={[styles.analyseBtn, (!photoUri || analysing) && styles.analyseBtnDisabled]}
+        <Pressable
+          style={({ pressed }) => [styles.analyseBtn, (!photoUri || analysing) && styles.analyseBtnDisabled, pressed && !!photoUri && !analysing && { opacity: 0.75 }]}
           onPress={handleAnalyse}
           disabled={!photoUri || analysing}
         >
@@ -142,7 +162,7 @@ export default function CaptureScreen({ project, onBack, onAnalysed }: Props) {
           ) : (
             <Text style={styles.analyseBtnText}>Analyse with AI →</Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
 
         {analysing && (
           <Text style={styles.analysingHint}>

@@ -84,3 +84,10 @@ export function getRiskBand(score: number): { label: string; color: string; acce
   if (score <= 1000) return { label: "Extreme", color: "#CC0000", acceptable: false }
   return { label: "Unacceptable", color: "#990000", acceptable: false }
 }
+
+export function getParamLabel(param: keyof typeof HRN_PARAMS, value: number): string {
+  const options = HRN_PARAMS[param]
+  return options.reduce((prev, curr) =>
+    Math.abs(curr.value - value) < Math.abs(prev.value - value) ? curr : prev
+  ).label
+}

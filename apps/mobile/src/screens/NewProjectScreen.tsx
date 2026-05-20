@@ -2,11 +2,11 @@ import React, { useState } from "react"
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native"
 import type { AssessmentProject } from "../../../../../shared/types/assessment"
@@ -52,9 +52,9 @@ export default function NewProjectScreen({ onBack, onStart }: Props) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
+        <Pressable onPress={onBack}>
           <Text style={styles.back}>‹ Back</Text>
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.title}>New Assessment</Text>
       </View>
 
@@ -66,9 +66,9 @@ export default function NewProjectScreen({ onBack, onStart }: Props) {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
+        <Pressable style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.75 }]} onPress={handleStart}>
           <Text style={styles.startBtnText}>Start Assessment →</Text>
-        </TouchableOpacity>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   )

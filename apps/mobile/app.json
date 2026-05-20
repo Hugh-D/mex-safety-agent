@@ -3,9 +3,22 @@
     "name": "MEX Safety Mobile",
     "slug": "mex-safety-mobile",
     "version": "0.1.0",
-    "sdkVersion": "49.0.0",
-    "platforms": ["ios", "android", "web"],
+    "sdkVersion": "54.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "jsEngine": "hermes",
-    "main": "App.tsx"
+    "main": "App.tsx",
+    "plugins": ["expo-audio"],
+    "android": {
+      "permissions": ["android.permission.RECORD_AUDIO"]
+    },
+    "ios": {
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "MEX Safety uses the microphone to record voice notes for hazard assessment."
+      }
+    }
   }
 }

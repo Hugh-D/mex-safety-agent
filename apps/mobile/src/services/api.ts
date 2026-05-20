@@ -8,23 +8,38 @@ import type {
   ProjectListResponse,
 } from "../../../../shared/types/assessment"
 
-export const API_BASE = "http://localhost:8000/api"
+export const API_BASE =
+  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api"
 
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
-async function requestJSON<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+const TIMEOUT_MS = 8000
+const AI_TIMEOUT_MS = 120_000
+
+function fetchWithTimeout(url: string, options?: RequestInit, timeoutMs = TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer),
+  )
+}
+
+async function requestJSON<T>(path: string, body: unknown, timeoutMs = TIMEOUT_MS): Promise<T> {
+  const response = await fetchWithTimeout(`${API_BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  })
-  if (!response.ok) throw new Error(`API error: ${response.statusText}`)
+  }, timeoutMs)
+  if (!response.ok) {
+    const text = await response.text().catch(() => "")
+    throw new Error(`API error ${response.status}: ${text || response.statusText}`)
+  }
   return response.json()
 }
 
 async function getJSON<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`)
+  const response = await fetchWithTimeout(`${API_BASE}${path}`)
   if (!response.ok) throw new Error(`API error: ${response.statusText}`)
   return response.json()
 }
@@ -45,7 +60,7 @@ export async function listProjects(): Promise<ProjectListResponse> {
 }
 
 export async function getProject(projectNumber: string): Promise<AssessmentProject> {
-  return getJSON<AssessmentProject>(`/assessment/project/${projectNumber}`)
+  return getJSON<AssessmentProject>(`/assessment/project/${encodeURIComponent(projectNumber)}`)
 }
 
 export async function saveProject(project: AssessmentProject): Promise<AssessmentProject> {
@@ -53,7 +68,7 @@ export async function saveProject(project: AssessmentProject): Promise<Assessmen
 }
 
 export async function generateProjectReport(projectNumber: string): Promise<Blob> {
-  const response = await fetch(`${API_BASE}/report/project/${projectNumber}`)
+  const response = await fetch(`${API_BASE}/report/project/${encodeURIComponent(projectNumber)}`)
   if (!response.ok) throw new Error(`Failed to generate report: ${response.statusText}`)
   return response.blob()
 }
@@ -117,8 +132,6 @@ export async function analysePhoto(
 ): Promise<PhotoAnalysisResult> {
   const formData = new FormData()
 
-  // On web, expo-image-picker returns a blob: URI — fetch it into a real File.
-  // On native, use the { uri, type, name } shorthand that React Native understands.
   if (imageUri.startsWith("blob:") || imageUri.startsWith("data:")) {
     const blob = await fetch(imageUri).then((r) => r.blob())
     formData.append("file", new File([blob], "photo.jpg", { type: blob.type || "image/jpeg" }))
@@ -129,23 +142,29 @@ export async function analysePhoto(
   formData.append("site_label", siteLabel)
   if (equipmentRef) formData.append("equipment_ref", equipmentRef)
 
-  const response = await fetch(`${API_BASE}/ai/photo`, { method: "POST", body: formData })
-  if (!response.ok) throw new Error(`Photo analysis failed: ${response.statusText}`)
-  const raw = await response.json()
-  // Snake_case → camelCase mapping from API response
-  return {
-    observations: raw.observations,
-    hazardTypes: raw.hazard_types,
-    suggestedMode: raw.suggested_mode,
-    suggestedTask: raw.suggested_task,
-    hrnSuggestions: {
-      LO: raw.hrn_suggestions.LO,
-      FE: raw.hrn_suggestions.FE,
-      DPH: raw.hrn_suggestions.DPH,
-      NP: raw.hrn_suggestions.NP,
-    },
-    flags: raw.flags,
+  // POST to /ai/photo/start — returns immediately with a job_id (no timeout: upload may take a few seconds)
+  const startResp = await fetch(`${API_BASE}/ai/photo/start`, { method: "POST", body: formData })
+  if (!startResp.ok) throw new Error(`Photo upload failed: ${startResp.statusText}`)
+  const { job_id } = await startResp.json()
+
+  // Poll /ai/photo/{job_id} every 3s for up to 120s
+  const deadline = Date.now() + 120_000
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 3000))
+    const pollResp = await fetchWithTimeout(`${API_BASE}/ai/photo/${job_id}`)
+    if (!pollResp.ok) throw new Error(`Poll failed: ${pollResp.statusText}`)
+    const job = await pollResp.json()
+    if (job.status === "complete") { const raw = job.result; return {
+      observations: raw.observations,
+      hazardTypes: raw.hazard_types,
+      suggestedMode: raw.suggested_mode,
+      suggestedTask: raw.suggested_task,
+      hrnSuggestions: { LO: raw.hrn_suggestions.LO, FE: raw.hrn_suggestions.FE, DPH: raw.hrn_suggestions.DPH, NP: raw.hrn_suggestions.NP },
+      flags: raw.flags,
+    }}
+    if (job.status === "error") throw new Error(job.detail ?? "AI analysis failed")
   }
+  throw new Error("Analysis timed out — please try again")
 }
 
 export async function validateHrn(
@@ -159,7 +178,7 @@ export async function validateHrn(
     hazard_types: hazardTypes,
     observations,
     risk_reduction_measures: riskReductionMeasures,
-  })
+  }, AI_TIMEOUT_MS)
   return {
     valid: raw.valid,
     challengedParameters: raw.challenged_parameters?.map((p: any) => ({
@@ -197,16 +216,23 @@ export async function transcribeVoice(
 
   formData.append("site_label", siteLabel)
 
-  const response = await fetch(`${API_BASE}/ai/voice`, { method: "POST", body: formData })
-  if (!response.ok) throw new Error(`Voice transcription failed: ${response.statusText}`)
-  const raw = await response.json()
-  return {
-    transcript: raw.transcript,
-    suggestedMode: raw.suggested_mode,
-    suggestedTask: raw.suggested_task,
-    hazardTypes: raw.hazard_types ?? [],
-    typedNotes: raw.typed_notes,
+  const startResp = await fetchWithTimeout(`${API_BASE}/ai/voice/start`, { method: "POST", body: formData })
+  if (!startResp.ok) throw new Error(`Voice upload failed: ${startResp.statusText}`)
+  const { job_id } = await startResp.json()
+
+  const deadline = Date.now() + 120_000
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 3000))
+    const pollResp = await fetchWithTimeout(`${API_BASE}/ai/voice/${job_id}`)
+    if (!pollResp.ok) throw new Error(`Poll failed: ${pollResp.statusText}`)
+    const job = await pollResp.json()
+    if (job.status === "complete") {
+      const raw = job.result
+      return { transcript: raw.transcript, suggestedMode: raw.suggested_mode, suggestedTask: raw.suggested_task, hazardTypes: raw.hazard_types ?? [], typedNotes: raw.typed_notes }
+    }
+    if (job.status === "error") throw new Error(job.detail ?? "Transcription failed")
   }
+  throw new Error("Transcription timed out — please try again")
 }
 
 export async function recommendRiskReduction(
@@ -226,7 +252,7 @@ export async function recommendRiskReduction(
     hrn_score: hrnScore,
     risk_band: riskBand,
     existing_measures: existingMeasures,
-  })
+  }, AI_TIMEOUT_MS)
   return {
     measures: raw.measures?.map((m: any) => ({
       description: m.description,

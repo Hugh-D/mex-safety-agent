@@ -4,14 +4,14 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native"
-import { Audio } from "expo-av"
+import { useAudioRecorder, AudioModule, RecordingPresets } from "expo-audio"
 import type { HazardEntry } from "../../../../../shared/types/assessment"
 import type { PhotoAnalysisResult, HRNValidationResult, RiskReductionResult, VoiceTranscriptResult } from "../services/api"
 import { validateHrn, recommendRiskReduction, transcribeVoice } from "../services/api"
@@ -27,7 +27,8 @@ import {
   getRiskBand,
 } from "../constants"
 
-interface Props {
+interface NewCaptureProps {
+  existingHazard?: undefined
   photoUri: string
   siteLabel: string
   aiResult: PhotoAnalysisResult
@@ -35,7 +36,22 @@ interface Props {
   onBack: () => void
   onSave: (entry: HazardEntry) => void
   onSaveAndAddAnother: (entry: HazardEntry) => void
+  onUpdate?: never
 }
+
+interface EditProps {
+  existingHazard: HazardEntry
+  onUpdate: (entry: HazardEntry) => void
+  onBack: () => void
+  photoUri?: never
+  siteLabel?: never
+  aiResult?: never
+  hazardCount?: never
+  onSave?: never
+  onSaveAndAddAnother?: never
+}
+
+type Props = NewCaptureProps | EditProps
 
 // ---------------------------------------------------------------------------
 // Sub-component: value picker row (cycles through allowed values)
@@ -65,16 +81,16 @@ function HrnPicker({
   return (
     <View style={[pickerStyles.row, challenged && pickerStyles.rowChallenged]}>
       <Text style={pickerStyles.paramLabel}>{param}</Text>
-      <TouchableOpacity onPress={prev} style={pickerStyles.arrow} disabled={idx === 0}>
+      <Pressable onPress={prev} style={pickerStyles.arrow} disabled={idx === 0}>
         <Text style={[pickerStyles.arrowText, idx === 0 && pickerStyles.arrowDisabled]}>◀</Text>
-      </TouchableOpacity>
+      </Pressable>
       <View style={pickerStyles.valueBox}>
         <Text style={pickerStyles.value}>{current.value}</Text>
         <Text style={pickerStyles.valueLabel} numberOfLines={1}>{current.label}</Text>
       </View>
-      <TouchableOpacity onPress={next} style={pickerStyles.arrow} disabled={idx === options.length - 1}>
+      <Pressable onPress={next} style={pickerStyles.arrow} disabled={idx === options.length - 1}>
         <Text style={[pickerStyles.arrowText, idx === options.length - 1 && pickerStyles.arrowDisabled]}>▶</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   )
 }
@@ -104,24 +120,29 @@ const pickerStyles = StyleSheet.create({
 // ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
-export default function HazardFormScreen({
-  photoUri,
-  siteLabel,
-  aiResult,
-  hazardCount,
-  onBack,
-  onSave,
-  onSaveAndAddAnother,
-}: Props) {
-  const [mode, setMode] = useState(aiResult.suggestedMode)
-  const [task, setTask] = useState(aiResult.suggestedTask)
-  const [selectedHazardTypes, setSelectedHazardTypes] = useState<string[]>(aiResult.hazardTypes)
-  const [notes, setNotes] = useState("")
+export default function HazardFormScreen(props: Props) {
+  const isEditMode = props.existingHazard !== undefined
+  const { onBack } = props
 
-  const [LO, setLO] = useState(aiResult.hrnSuggestions.LO.value)
-  const [FE, setFE] = useState(aiResult.hrnSuggestions.FE.value)
-  const [DPH, setDPH] = useState(aiResult.hrnSuggestions.DPH.value)
-  const [NP, setNP] = useState(aiResult.hrnSuggestions.NP.value)
+  const initMode = isEditMode ? props.existingHazard.mode : props.aiResult.suggestedMode
+  const initTask = isEditMode ? props.existingHazard.task : props.aiResult.suggestedTask
+  const initHazardTypes = isEditMode ? props.existingHazard.hazardTypes : props.aiResult.hazardTypes
+  const initLO = isEditMode ? props.existingHazard.hrnBefore.LO : props.aiResult.hrnSuggestions.LO.value
+  const initFE = isEditMode ? props.existingHazard.hrnBefore.FE : props.aiResult.hrnSuggestions.FE.value
+  const initDPH = isEditMode ? props.existingHazard.hrnBefore.DPH : props.aiResult.hrnSuggestions.DPH.value
+  const initNP = isEditMode ? props.existingHazard.hrnBefore.NP : props.aiResult.hrnSuggestions.NP.value
+  const siteLabel = isEditMode ? props.existingHazard.location : props.siteLabel
+  const photoUri = isEditMode ? (props.existingHazard.photos[0]?.filepath ?? "") : props.photoUri
+
+  const [mode, setMode] = useState(initMode)
+  const [task, setTask] = useState(initTask)
+  const [selectedHazardTypes, setSelectedHazardTypes] = useState<string[]>(initHazardTypes)
+  const [notes, setNotes] = useState(isEditMode ? (props.existingHazard.typedNotes ?? "") : "")
+
+  const [LO, setLO] = useState(initLO)
+  const [FE, setFE] = useState(initFE)
+  const [DPH, setDPH] = useState(initDPH)
+  const [NP, setNP] = useState(initNP)
 
   const hrnScore = calcHrn(LO, FE, DPH, NP)
   const band = getRiskBand(hrnScore)
@@ -133,17 +154,17 @@ export default function HazardFormScreen({
   const [selectedMeasures, setSelectedMeasures] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  const [postLO, setPostLO] = useState(aiResult.hrnSuggestions.LO.value)
-  const [postFE, setPostFE] = useState(aiResult.hrnSuggestions.FE.value)
-  const [postDPH, setPostDPH] = useState(aiResult.hrnSuggestions.DPH.value)
-  const [postNP, setPostNP] = useState(aiResult.hrnSuggestions.NP.value)
+  const [postLO, setPostLO] = useState(isEditMode ? (props.existingHazard.hrnAfter?.LO ?? initLO) : initLO)
+  const [postFE, setPostFE] = useState(isEditMode ? (props.existingHazard.hrnAfter?.FE ?? initFE) : initFE)
+  const [postDPH, setPostDPH] = useState(isEditMode ? (props.existingHazard.hrnAfter?.DPH ?? initDPH) : initDPH)
+  const [postNP, setPostNP] = useState(isEditMode ? (props.existingHazard.hrnAfter?.NP ?? initNP) : initNP)
   const postHrnScore = calcHrn(postLO, postFE, postDPH, postNP)
   const postBand = getRiskBand(postHrnScore)
 
-  const [recording, setRecording] = useState<Audio.Recording | null>(null)
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing" | "done">("idle")
   const [voiceResult, setVoiceResult] = useState<VoiceTranscriptResult | null>(null)
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 
   const challengedParams = new Set(validation?.challengedParameters.map((c) => c.parameter) ?? [])
 
@@ -166,15 +187,14 @@ export default function HazardFormScreen({
     setRrResult(null)
     setSelectedMeasures([])
     try {
+      const justification = isEditMode
+        ? (props.existingHazard.hrnBefore.justification ?? {})
+        : { LO: props.aiResult.hrnSuggestions.LO.justification, FE: props.aiResult.hrnSuggestions.FE.justification, DPH: props.aiResult.hrnSuggestions.DPH.justification, NP: props.aiResult.hrnSuggestions.NP.justification }
+      const observations = isEditMode ? (props.existingHazard.typedNotes ?? "") : props.aiResult.observations
       const result = await validateHrn(
-        { LO, FE, DPH, NP, justification: {
-          LO: aiResult.hrnSuggestions.LO.justification,
-          FE: aiResult.hrnSuggestions.FE.justification,
-          DPH: aiResult.hrnSuggestions.DPH.justification,
-          NP: aiResult.hrnSuggestions.NP.justification,
-        }},
+        { LO, FE, DPH, NP, justification },
         selectedHazardTypes,
-        aiResult.observations,
+        observations,
       )
       setValidation(result)
 
@@ -198,15 +218,19 @@ export default function HazardFormScreen({
   }
 
   async function startRecording() {
+    if (Platform.OS === "web") {
+      setVoiceError("Voice recording is not supported in the web preview — use the Expo Go app on your device")
+      return
+    }
     setVoiceError(null)
     try {
-      const { granted } = await Audio.requestPermissionsAsync()
-      if (!granted) { setVoiceError("Microphone permission denied"); return }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
-      const { recording: rec } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      )
-      setRecording(rec)
+      const permission = await AudioModule.requestRecordingPermissionsAsync()
+      if (!permission.granted) {
+        setVoiceError("Microphone permission denied — enable it in device Settings")
+        return
+      }
+      await audioRecorder.prepareToRecordAsync()
+      audioRecorder.record()
       setVoiceState("recording")
     } catch (e) {
       setVoiceError(`Could not start recording: ${(e as Error).message}`)
@@ -214,13 +238,11 @@ export default function HazardFormScreen({
   }
 
   async function stopRecording() {
-    if (!recording) return
-    setVoiceState("processing")
     try {
-      await recording.stopAndUnloadAsync()
-      const uri = recording.getURI()
-      setRecording(null)
-      if (!uri) throw new Error("No audio URI returned")
+      await audioRecorder.stop()
+      const uri = audioRecorder.uri
+      if (!uri) { setVoiceState("idle"); return }
+      setVoiceState("processing")
       const result = await transcribeVoice(uri, siteLabel)
       setVoiceResult(result)
       setVoiceState("done")
@@ -249,72 +271,79 @@ export default function HazardFormScreen({
   }
 
   function buildEntry(): HazardEntry {
-    const id = `H${String(hazardCount + 1).padStart(2, "0")}`
+    const existing = isEditMode ? props.existingHazard : null
+    const id = existing ? existing.id : `H${String(props.hazardCount + 1).padStart(2, "0")}`
+
+    const hrnAfterFields = rrResult
+      ? { hrnAfter: { LO: postLO, FE: postFE, DPH: postDPH, NP: postNP }, hrnScoreAfter: postHrnScore, riskBandAfter: postBand.label }
+      : existing?.hrnAfter
+        ? { hrnAfter: existing.hrnAfter, hrnScoreAfter: existing.hrnScoreAfter, riskBandAfter: existing.riskBandAfter }
+        : {}
+
     return {
       id,
       location: siteLabel,
       mode,
       task,
       hazardTypes: selectedHazardTypes,
-      photos: [{ filepath: photoUri, timestamp: new Date().toISOString(), siteLabel, annotations: [] }],
-      voiceNotes: [],
+      photos: existing
+        ? existing.photos
+        : photoUri ? [{ filepath: photoUri, timestamp: new Date().toISOString(), siteLabel, annotations: [] as any[] }] : [],
+      voiceNotes: existing ? existing.voiceNotes : [],
       typedNotes: notes || undefined,
       hrnBefore: { LO, FE, DPH, NP },
       hrnScoreBefore: hrnScore,
       riskBandBefore: band.label,
-      riskReductionMeasures: selectedMeasures,
+      riskReductionMeasures: selectedMeasures.length > 0 ? selectedMeasures : (existing?.riskReductionMeasures ?? []),
       standardsReferences: rrResult
-        ? rrResult.measures
-            .filter((m) => selectedMeasures.includes(m.description))
-            .flatMap((m) => m.standardsReferences)
-            .filter((v, i, a) => a.indexOf(v) === i)
-        : [],
-      ...(rrResult && {
-        hrnAfter: { LO: postLO, FE: postFE, DPH: postDPH, NP: postNP },
-        hrnScoreAfter: postHrnScore,
-        riskBandAfter: postBand.label,
-      }),
-      aiValidationFlags: validation?.flags ?? [],
-      aiRecommendations: rrResult?.measures.map((m) => m.description) ?? [],
+        ? rrResult.measures.filter((m) => selectedMeasures.includes(m.description)).flatMap((m) => m.standardsReferences).filter((v, i, a) => a.indexOf(v) === i)
+        : (existing?.standardsReferences ?? []),
+      ...hrnAfterFields,
+      aiValidationFlags: validation?.flags ?? existing?.aiValidationFlags ?? [],
+      aiRecommendations: rrResult?.measures.map((m) => m.description) ?? existing?.aiRecommendations ?? [],
     }
   }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
+        <Pressable onPress={onBack}>
           <Text style={styles.back}>‹ Back</Text>
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.title}>Hazard Details</Text>
         <Text style={styles.subtitle}>{siteLabel}</Text>
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-        {/* Photo + observations */}
-        <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>AI Observations</Text>
-          <Text style={styles.observations}>{aiResult.observations}</Text>
-          {aiResult.flags.map((flag, i) => (
-            <View key={i} style={styles.flagRow}>
-              <Text style={styles.flagText}>⚠ {flag}</Text>
+        {/* Photo + observations — new capture only */}
+        {!isEditMode && (
+          <>
+            <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>AI Observations</Text>
+              <Text style={styles.observations}>{props.aiResult.observations}</Text>
+              {props.aiResult.flags.map((flag, i) => (
+                <View key={i} style={styles.flagRow}>
+                  <Text style={styles.flagText}>⚠ {flag}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
+          </>
+        )}
 
         {/* Voice note */}
         <Text style={styles.sectionLabel}>Voice Note</Text>
         {voiceState === "idle" && (
-          <TouchableOpacity style={styles.micBtn} onPress={startRecording}>
+          <Pressable style={({ pressed }) => [styles.micBtn, pressed && { opacity: 0.75 }]} onPress={startRecording}>
             <Text style={styles.micIcon}>🎙</Text>
             <Text style={styles.micBtnText}>Record voice note</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
         {voiceState === "recording" && (
-          <TouchableOpacity style={[styles.micBtn, styles.micBtnRecording]} onPress={stopRecording}>
+          <Pressable style={({ pressed }) => [styles.micBtn, styles.micBtnRecording, pressed && { opacity: 0.75 }]} onPress={stopRecording}>
             <Text style={styles.micIcon}>⏹</Text>
             <Text style={styles.micBtnText}>Recording… tap to stop</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
         {voiceState === "processing" && (
           <View style={styles.loadingRow}>
@@ -336,12 +365,12 @@ export default function HazardFormScreen({
               </Text>
             )}
             <View style={styles.voiceActions}>
-              <TouchableOpacity style={styles.applyBtn} onPress={applyVoiceNote}>
+              <Pressable style={({ pressed }) => [styles.applyBtn, pressed && { opacity: 0.75 }]} onPress={applyVoiceNote}>
                 <Text style={styles.applyBtnText}>Apply to form</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setVoiceResult(null); setVoiceState("idle") }}>
+              </Pressable>
+              <Pressable onPress={() => { setVoiceResult(null); setVoiceState("idle") }}>
                 <Text style={styles.discardText}>Discard</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         )}
@@ -351,13 +380,13 @@ export default function HazardFormScreen({
         <Text style={styles.sectionLabel}>Mode</Text>
         <View style={styles.chipRow}>
           {MODES.map((m) => (
-            <TouchableOpacity
+            <Pressable
               key={m}
-              style={[styles.chip, mode === m && styles.chipActive]}
+              style={({ pressed }) => [styles.chip, mode === m && styles.chipActive, pressed && { opacity: 0.75 }]}
               onPress={() => setMode(m)}
             >
               <Text style={[styles.chipText, mode === m && styles.chipTextActive]}>{m}</Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
@@ -375,15 +404,15 @@ export default function HazardFormScreen({
         <Text style={styles.sectionLabel}>Hazard Types</Text>
         <View style={styles.chipRow}>
           {HAZARD_TYPES.map((ht) => (
-            <TouchableOpacity
+            <Pressable
               key={ht}
-              style={[styles.chip, selectedHazardTypes.includes(ht) && styles.chipActive]}
+              style={({ pressed }) => [styles.chip, selectedHazardTypes.includes(ht) && styles.chipActive, pressed && { opacity: 0.75 }]}
               onPress={() => toggleHazardType(ht)}
             >
               <Text style={[styles.chipText, selectedHazardTypes.includes(ht) && styles.chipTextActive]}>
                 {ht}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
@@ -403,8 +432,8 @@ export default function HazardFormScreen({
         </View>
 
         {/* Validate button */}
-        <TouchableOpacity
-          style={[styles.validateBtn, validating && styles.btnDisabled]}
+        <Pressable
+          style={({ pressed }) => [styles.validateBtn, validating && styles.btnDisabled, pressed && !validating && { opacity: 0.75 }]}
           onPress={handleValidate}
           disabled={validating}
         >
@@ -413,7 +442,7 @@ export default function HazardFormScreen({
           ) : (
             <Text style={styles.validateBtnText}>Validate HRN with AI</Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Validation result */}
         {validation && (
@@ -446,9 +475,9 @@ export default function HazardFormScreen({
             <Text style={styles.cardTitle}>Risk Reduction Recommendations</Text>
             <Text style={styles.rrNotes}>{rrResult.notes}</Text>
             {rrResult.measures.map((m, i) => (
-              <TouchableOpacity
+              <Pressable
                 key={i}
-                style={[styles.measureRow, selectedMeasures.includes(m.description) && styles.measureSelected]}
+                style={({ pressed }) => [styles.measureRow, selectedMeasures.includes(m.description) && styles.measureSelected, pressed && { opacity: 0.75 }]}
                 onPress={() => toggleMeasure(m.description)}
               >
                 <Text style={styles.measureCheck}>{selectedMeasures.includes(m.description) ? "☑" : "☐"}</Text>
@@ -461,7 +490,7 @@ export default function HazardFormScreen({
                     <Text style={styles.measureRefs}>{m.standardsReferences.join("  |  ")}</Text>
                   )}
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         )}
@@ -499,12 +528,20 @@ export default function HazardFormScreen({
         {error && <Text style={styles.error}>{error}</Text>}
 
         {/* Save buttons */}
-        <TouchableOpacity style={styles.saveBtn} onPress={() => onSaveAndAddAnother(buildEntry())}>
-          <Text style={styles.saveBtnText}>Save & Add Another →</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.finishBtn} onPress={() => onSave(buildEntry())}>
-          <Text style={styles.finishBtnText}>Save & Review Project</Text>
-        </TouchableOpacity>
+        {isEditMode ? (
+          <Pressable style={({ pressed }) => [styles.finishBtn, pressed && { opacity: 0.75 }]} onPress={() => props.onUpdate(buildEntry())}>
+            <Text style={styles.finishBtnText}>Save Changes</Text>
+          </Pressable>
+        ) : (
+          <>
+            <Pressable style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.75 }]} onPress={() => props.onSaveAndAddAnother(buildEntry())}>
+              <Text style={styles.saveBtnText}>Save & Add Another →</Text>
+            </Pressable>
+            <Pressable style={({ pressed }) => [styles.finishBtn, pressed && { opacity: 0.75 }]} onPress={() => props.onSave(buildEntry())}>
+              <Text style={styles.finishBtnText}>Save & Review Project</Text>
+            </Pressable>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   )

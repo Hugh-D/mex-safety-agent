@@ -1,136 +1,138 @@
 import React, { useState } from "react"
-import { StatusBar } from "expo-status-bar"
-import type { AssessmentProject, HazardEntry } from "../../../../shared/types/assessment"
-import type { PhotoAnalysisResult } from "./services/api"
-import { getProject } from "./services/api"
-
 import HomeScreen from "./screens/HomeScreen"
 import NewProjectScreen from "./screens/NewProjectScreen"
 import CaptureScreen from "./screens/CaptureScreen"
 import HazardFormScreen from "./screens/HazardFormScreen"
 import ReviewScreen from "./screens/ReviewScreen"
+import type { AssessmentProject, HazardEntry } from "../../../../shared/types/assessment"
+import type { PhotoAnalysisResult } from "./services/api"
+import { getProject } from "./services/api"
 
-// ---------------------------------------------------------------------------
-// Screen state machine
-// ---------------------------------------------------------------------------
 type Screen =
-  | { name: "home" }
-  | { name: "new-project" }
-  | { name: "capture" }
-  | { name: "hazard-form"; photoUri: string; siteLabel: string; aiResult: PhotoAnalysisResult }
-  | { name: "review" }
+  | { name: "Home" }
+  | { name: "NewProject" }
+  | { name: "Capture" }
+  | { name: "HazardForm"; photoUri: string; siteLabel: string; aiResult: PhotoAnalysisResult }
+  | { name: "EditHazard"; hazardId: string }
+  | { name: "Review" }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>({ name: "home" })
+  const [screen, setScreen] = useState<Screen>({ name: "Home" })
   const [project, setProject] = useState<AssessmentProject | null>(null)
 
-  // -------------------------------------------------------------------------
-  // Navigation
-  // -------------------------------------------------------------------------
-  function goHome() {
-    setScreen({ name: "home" })
-    setProject(null)
+  function addHazard(entry: HazardEntry) {
+    setProject((prev) =>
+      prev ? { ...prev, hazards: [...prev.hazards, entry], updatedAt: new Date().toISOString() } : prev,
+    )
   }
 
-  async function goOpenProject(projectNumber: string) {
+  function updateHazard(entry: HazardEntry) {
+    setProject((prev) =>
+      prev
+        ? { ...prev, hazards: prev.hazards.map((h) => (h.id === entry.id ? entry : h)), updatedAt: new Date().toISOString() }
+        : prev,
+    )
+  }
+
+  async function openProject(projectNumber: string) {
     try {
-      const loaded = await getProject(projectNumber)
-      setProject(loaded)
+      const p = await getProject(projectNumber)
+      setProject(p)
+      setScreen({ name: "Review" })
     } catch {
-      setProject({
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: "draft",
-        projectBrief: {
-          projectNumber,
-          client: "", site: "", machineOrLine: "",
-          assessmentDate: new Date().toISOString().split("T")[0],
-          team: [], scopeDescription: "", standardsApplicable: [], lifecycleExclusions: [],
-        },
-        hazards: [],
-      })
+      setProject(null)
+      setScreen({ name: "Home" })
     }
-    setScreen({ name: "review" })
   }
 
-  function goStartProject(newProject: AssessmentProject) {
-    setProject(newProject)
-    setScreen({ name: "capture" })
+  if (screen.name === "Home") {
+    return (
+      <HomeScreen
+        onNewAssessment={() => setScreen({ name: "NewProject" })}
+        onOpenProject={openProject}
+      />
+    )
   }
 
-  function goCapture() {
-    setScreen({ name: "capture" })
+  if (screen.name === "NewProject") {
+    return (
+      <NewProjectScreen
+        onBack={() => setScreen({ name: "Home" })}
+        onStart={(p) => {
+          setProject(p)
+          setScreen({ name: "Capture" })
+        }}
+      />
+    )
   }
 
-  function goHazardForm(photoUri: string, siteLabel: string, aiResult: PhotoAnalysisResult) {
-    setScreen({ name: "hazard-form", photoUri, siteLabel, aiResult })
+  if (screen.name === "Capture" && project) {
+    return (
+      <CaptureScreen
+        project={project}
+        onBack={() => setScreen({ name: "Home" })}
+        onAnalysed={(photoUri, siteLabel, aiResult) =>
+          setScreen({ name: "HazardForm", photoUri, siteLabel, aiResult })
+        }
+      />
+    )
   }
 
-  function addHazardToProject(entry: HazardEntry): AssessmentProject | null {
-    let updated: AssessmentProject | null = null
-    setProject((prev) => {
-      if (!prev) return prev
-      updated = { ...prev, hazards: [...prev.hazards, entry], updatedAt: new Date().toISOString() }
-      return updated
-    })
-    return updated
+  if (screen.name === "HazardForm" && project) {
+    return (
+      <HazardFormScreen
+        photoUri={screen.photoUri}
+        siteLabel={screen.siteLabel}
+        aiResult={screen.aiResult}
+        hazardCount={project.hazards.length}
+        onBack={() => setScreen({ name: "Capture" })}
+        onSave={(entry) => {
+          addHazard(entry)
+          setScreen({ name: "Review" })
+        }}
+        onSaveAndAddAnother={(entry) => {
+          addHazard(entry)
+          setScreen({ name: "Capture" })
+        }}
+      />
+    )
   }
 
-  function handleSaveHazard(entry: HazardEntry) {
-    addHazardToProject(entry)
-    setScreen({ name: "review" })
-  }
-
-  function handleSaveAndAddAnother(entry: HazardEntry) {
-    addHazardToProject(entry)
-    setScreen({ name: "capture" })
-  }
-
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
-  return (
-    <>
-      <StatusBar style="light" />
-
-      {screen.name === "home" && (
-        <HomeScreen
-          onNewAssessment={() => setScreen({ name: "new-project" })}
-          onOpenProject={goOpenProject}
-        />
-      )}
-
-      {screen.name === "new-project" && (
-        <NewProjectScreen onBack={goHome} onStart={goStartProject} />
-      )}
-
-      {screen.name === "capture" && project && (
-        <CaptureScreen
-          project={project}
-          onBack={() => setScreen({ name: "review" })}
-          onAnalysed={goHazardForm}
-        />
-      )}
-
-      {screen.name === "hazard-form" && project && (
+  if (screen.name === "EditHazard" && project) {
+    const hazard = project.hazards.find((h) => h.id === screen.hazardId)
+    if (hazard) {
+      return (
         <HazardFormScreen
-          photoUri={screen.photoUri}
-          siteLabel={screen.siteLabel}
-          aiResult={screen.aiResult}
-          hazardCount={project.hazards.length}
-          onBack={goCapture}
-          onSave={handleSaveHazard}
-          onSaveAndAddAnother={handleSaveAndAddAnother}
+          existingHazard={hazard}
+          onBack={() => setScreen({ name: "Review" })}
+          onUpdate={(entry) => {
+            updateHazard(entry)
+            setScreen({ name: "Review" })
+          }}
         />
-      )}
+      )
+    }
+  }
 
-      {screen.name === "review" && project && (
-        <ReviewScreen
-          project={project}
-          onAddHazard={goCapture}
-          onHome={goHome}
-        />
-      )}
-    </>
+  if (screen.name === "Review" && project) {
+    return (
+      <ReviewScreen
+        project={project}
+        onAddHazard={() => setScreen({ name: "Capture" })}
+        onEditHazard={(hazardId) => setScreen({ name: "EditHazard", hazardId })}
+        onHome={() => {
+          setProject(null)
+          setScreen({ name: "Home" })
+        }}
+      />
+    )
+  }
+
+  // Fallback: screen requires a project but none is loaded — go Home
+  return (
+    <HomeScreen
+      onNewAssessment={() => setScreen({ name: "NewProject" })}
+      onOpenProject={openProject}
+    />
   )
 }

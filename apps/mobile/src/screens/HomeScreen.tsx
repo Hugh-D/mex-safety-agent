@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native"
 import { listProjects } from "../services/api"
@@ -44,9 +44,9 @@ export default function HomeScreen({ onNewAssessment, onOpenProject }: Props) {
         <Text style={styles.tagline}>Field Safety Assessment</Text>
       </View>
 
-      <TouchableOpacity style={styles.newBtn} onPress={onNewAssessment}>
+      <Pressable style={({ pressed }) => [styles.newBtn, pressed && { opacity: 0.75 }]} onPress={onNewAssessment}>
         <Text style={styles.newBtnText}>+ New Assessment</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       <Text style={styles.sectionTitle}>Recent Projects</Text>
 
@@ -61,10 +61,10 @@ export default function HomeScreen({ onNewAssessment, onOpenProject }: Props) {
         data={projects}
         keyExtractor={(item) => item}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.projectRow} onPress={() => onOpenProject(item)}>
+          <Pressable style={({ pressed }) => [styles.projectRow, pressed && { opacity: 0.75 }]} onPress={() => onOpenProject(item)}>
             <Text style={styles.projectNumber}>{item}</Text>
             <Text style={styles.projectArrow}>›</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       />
     </View>
