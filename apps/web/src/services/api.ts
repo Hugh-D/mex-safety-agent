@@ -164,8 +164,8 @@ export async function listProjects(): Promise<ProjectListResponse> {
   return getJSON<ProjectListResponse>("/assessment/projects")
 }
 
-export async function generateProjectReport(projectNumber: string): Promise<Blob> {
-  const response = await fetch(`${API_BASE}/report/project/${encodeURIComponent(projectNumber)}`)
+export async function generateProjectReport(projectNumber: string, format: "pdf" | "docx" = "pdf"): Promise<Blob> {
+  const response = await fetch(`${API_BASE}/report/project/${encodeURIComponent(projectNumber)}?format=${format}`)
   if (!response.ok) {
     throw new Error(`Failed to generate report: ${response.statusText}`)
   }

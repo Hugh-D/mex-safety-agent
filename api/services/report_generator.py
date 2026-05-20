@@ -568,6 +568,167 @@ def _section_conclusion(ai_result: Optional[dict], fallback_notes: Optional[str]
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
+    """Generate an editable Word risk assessment report."""
+    from docx import Document
+    from docx.shared import Pt, RGBColor, Inches
+    from docx.oxml.ns import qn
+    from lxml import etree
+
+    NAVY_RGB = RGBColor(0x00, 0x25, 0x59)
+    LIME_RGB = RGBColor(0x70, 0xBF, 0x54)
+    GREY_RGB = RGBColor(0x8A, 0x9A, 0xB0)
+
+    BAND_TEXT: dict[str, RGBColor] = {}
+    BAND_BG_HEX = {
+        "Acceptable":   "00B050", "Very Low":    "92D050", "Needs Review": "FFA000",
+        "Low":          "FFFF00", "Significant": "FFC000", "High":         "FF6600",
+        "Very High":    "FF0000", "Extreme":     "CC0000", "Unacceptable": "990000",
+    }
+    LIGHT_BANDS = {"Acceptable", "Very Low", "Needs Review", "Low"}
+
+    doc = Document()
+    for section in doc.sections:
+        section.top_margin    = Inches(0.8)
+        section.bottom_margin = Inches(0.8)
+        section.left_margin   = Inches(0.9)
+        section.right_margin  = Inches(0.9)
+
+    def h1(text: str):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(6)
+        r = p.add_run(text)
+        r.bold = True; r.font.size = Pt(18); r.font.color.rgb = NAVY_RGB
+
+    def h2(text: str):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(10); p.paragraph_format.space_after = Pt(4)
+        r = p.add_run(text)
+        r.bold = True; r.font.size = Pt(12); r.font.color.rgb = NAVY_RGB
+
+    def h3(text: str):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(8); p.paragraph_format.space_after = Pt(3)
+        r = p.add_run(text)
+        r.bold = True; r.font.size = Pt(10); r.font.color.rgb = NAVY_RGB
+
+    def body(text: str):
+        p = doc.add_paragraph(text)
+        p.paragraph_format.space_after = Pt(4)
+        for r in p.runs:
+            r.font.size = Pt(9)
+        return p
+
+    def lime_rule():
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(0); p.paragraph_format.space_after = Pt(4)
+        pPr = p._p.get_or_add_pPr()
+        pBdr = etree.SubElement(pPr, qn("w:pBdr"))
+        bottom = etree.SubElement(pBdr, qn("w:bottom"))
+        bottom.set(qn("w:val"), "single")
+        bottom.set(qn("w:sz"), "6")
+        bottom.set(qn("w:space"), "1")
+        bottom.set(qn("w:color"), "70BF54")
+
+    def set_cell(cell, text: str, bold: bool = False, size: int = 9,
+                 colour: RGBColor = None, bg_hex: str = None):
+        cell.text = text
+        r = cell.paragraphs[0].runs[0] if cell.paragraphs[0].runs else cell.paragraphs[0].add_run(text)
+        if not cell.paragraphs[0].runs:
+            cell.text = ""
+            r = cell.paragraphs[0].add_run(text)
+        r.bold = bold
+        r.font.size = Pt(size)
+        if colour:
+            r.font.color.rgb = colour
+        if bg_hex:
+            from docx.oxml import parse_xml
+            from docx.oxml.ns import nsmap
+            shading = parse_xml(f'<w:shd {qn("xmlns:w")}="{nsmap["w"]}" w:val="clear" w:color="auto" w:fill="{bg_hex}"/>')
+            cell._tc.get_or_add_tcPr().append(shading)
+
+    b = request.project_brief
+
+    # ── Cover ─────────────────────────────────────────────────────────────────
+    h1("Risk Assessment Report")
+    p_sub = doc.add_paragraph()
+    r_sub = p_sub.add_run(f"{b.project_number} — {b.machine_or_line}")
+    r_sub.bold = True; r_sub.font.size = Pt(13); r_sub.font.color.rgb = NAVY_RGB
+    lime_rule()
+
+    meta = doc.add_table(rows=0, cols=2)
+    meta.style = "Table Grid"
+    for k, v in [("Client", b.client), ("Site", b.site),
+                  ("Machine / Line", b.machine_or_line),
+                  ("Assessment Date", str(b.assessment_date)),
+                  ("Project Number", b.project_number)]:
+        row = meta.add_row()
+        set_cell(row.cells[0], k, bold=True, colour=NAVY_RGB)
+        set_cell(row.cells[1], str(v))
+    doc.add_paragraph()
+
+    if b.scope_description:
+        h2("Scope")
+        lime_rule()
+        body(b.scope_description)
+
+    # ── Hazards ───────────────────────────────────────────────────────────────
+    h2(f"Risk Analysis — {len(request.hazards)} Hazard(s)")
+    lime_rule()
+
+    for h in request.hazards:
+        h3(f"{h.id}  {h.location}")
+        if h.typed_notes:
+            body(h.typed_notes)
+
+        detail = doc.add_table(rows=2, cols=9)
+        detail.style = "Table Grid"
+        headers = ["Mode", "Task", "Hazard Types", "LO", "FE", "DPH", "NP", "HRN", "Risk Band"]
+        for i, hdr in enumerate(headers):
+            set_cell(detail.rows[0].cells[i], hdr, bold=True, colour=NAVY_RGB, size=8)
+
+        hz_types = ", ".join(h.hazard_types) if h.hazard_types else "—"
+        hrn = h.hrn_before
+        score = str(h.hrn_score_before)
+        band = h.risk_band_before
+        bg = BAND_BG_HEX.get(band, "CCCCCC")
+        vals = [h.mode, h.task, hz_types,
+                str(hrn.LO), str(hrn.FE), str(hrn.DPH), str(hrn.NP),
+                score, band]
+        for i, val in enumerate(vals):
+            use_bg = bg if i >= 7 else None
+            set_cell(detail.rows[1].cells[i], val, size=8, bg_hex=use_bg)
+
+        if h.risk_reduction_measures:
+            row = detail.add_row()
+            set_cell(row.cells[0], "Risk Reduction", bold=True, size=8)
+            rr_cell = row.cells[1]
+            rr_cell.merge(row.cells[8])
+            rr_cell.text = "; ".join(h.risk_reduction_measures)
+            for r in rr_cell.paragraphs[0].runs:
+                r.font.size = Pt(8)
+
+        doc.add_paragraph()
+
+    # ── Sign-off ──────────────────────────────────────────────────────────────
+    h2("Review Sign-off")
+    lime_rule()
+    signoff = doc.add_table(rows=4, cols=4)
+    signoff.style = "Table Grid"
+    headers_row = ["Role", "Name", "Signature", "Date"]
+    for i, hdr in enumerate(headers_row):
+        set_cell(signoff.rows[0].cells[i], hdr, bold=True, colour=NAVY_RGB, size=9)
+    for role in ["Reviewed by (CMSE)", "Approved by (Eng Manager)", "Client Acceptance"]:
+        row = signoff.add_row()
+        set_cell(row.cells[0], role, bold=True, size=9)
+        for c in row.cells[1:]:
+            c.text = ""
+
+    buf = BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
 def build_risk_assessment_pdf(request: ReportDraftRequest) -> bytes:
     buffer = BytesIO()
     s = _build_styles()
