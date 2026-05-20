@@ -78,6 +78,7 @@ interface Props {
 
 export default function ProjectView({ project, onBack, onProjectUpdate }: Props) {
   const [showForm, setShowForm] = useState(false)
+  const [editingHazardIdx, setEditingHazardIdx] = useState<number | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [location, setLocation] = useState("")
@@ -90,7 +91,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
   const [validating, setValidating] = useState(false)
   const [validation, setValidation] = useState<HRNValidationResult | null>(null)
   const [saving, setSaving] = useState(false)
-  const [downloading, setDownloading] = useState(false)
+  const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -100,7 +101,19 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
   function resetForm() {
     setPhotoFile(null); setPhotoPreview(null); setLocation(""); setMode(MODES[0])
     setTask(""); setHazardTypes([]); setHrn(DEFAULT_HRN); setAiResult(null)
-    setValidation(null); setError(null); setShowForm(false)
+    setValidation(null); setError(null); setShowForm(false); setEditingHazardIdx(null)
+  }
+
+  function startEditHazard(idx: number) {
+    const h = project.hazards[idx]
+    setLocation(h.location)
+    setMode(h.mode)
+    setTask(h.task)
+    setHazardTypes([...h.hazardTypes])
+    setHrn({ LO: h.hrnBefore.LO, FE: h.hrnBefore.FE, DPH: h.hrnBefore.DPH, NP: h.hrnBefore.NP })
+    setPhotoFile(null); setPhotoPreview(null); setAiResult(null); setValidation(null); setError(null)
+    setEditingHazardIdx(idx)
+    setShowForm(true)
   }
 
   function toggleHazardType(t: string) {
@@ -143,32 +156,52 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     if (!location.trim()) { setError("Location is required"); return }
     setSaving(true); setError(null)
     try {
-      const hazardId = `H${String(project.hazards.length + 1).padStart(2, "0")}`
       const aiFlags: string[] = [
         ...(validation?.flags ?? []),
         ...(validation?.challengedParameters.map(
           (cp) => `${cp.parameter}: entered ${cp.enteredValue} → recommended ${cp.recommendedValue}. ${cp.reason}`
         ) ?? []),
       ]
-      const newHazard: HazardEntry = {
-        id: hazardId,
-        location: location.trim(),
-        mode,
-        task: task.trim(),
-        hazardTypes,
-        photos: [],
-        voiceNotes: [],
-        hrnBefore: hrn,
-        hrnScoreBefore: hrnScore,
-        riskBandBefore: band.label,
-        riskReductionMeasures: [],
-        standardsReferences: [],
-        aiValidationFlags: aiFlags,
-        aiRecommendations: [],
+
+      let updatedHazards: HazardEntry[]
+      if (editingHazardIdx !== null) {
+        const existing = project.hazards[editingHazardIdx]
+        const edited: HazardEntry = {
+          ...existing,
+          location: location.trim(),
+          mode,
+          task: task.trim(),
+          hazardTypes,
+          hrnBefore: hrn,
+          hrnScoreBefore: hrnScore,
+          riskBandBefore: band.label,
+          aiValidationFlags: aiFlags.length > 0 ? aiFlags : existing.aiValidationFlags,
+        }
+        updatedHazards = project.hazards.map((h, i) => i === editingHazardIdx ? edited : h)
+      } else {
+        const hazardId = `H${String(project.hazards.length + 1).padStart(2, "0")}`
+        const newHazard: HazardEntry = {
+          id: hazardId,
+          location: location.trim(),
+          mode,
+          task: task.trim(),
+          hazardTypes,
+          photos: [],
+          voiceNotes: [],
+          hrnBefore: hrn,
+          hrnScoreBefore: hrnScore,
+          riskBandBefore: band.label,
+          riskReductionMeasures: [],
+          standardsReferences: [],
+          aiValidationFlags: aiFlags,
+          aiRecommendations: [],
+        }
+        updatedHazards = [...project.hazards, newHazard]
       }
+
       const updated: AssessmentProject = {
         ...project,
-        hazards: [...project.hazards, newHazard],
+        hazards: updatedHazards,
         updatedAt: new Date().toISOString(),
       }
       await saveProject(updated)
@@ -181,14 +214,15 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     }
   }
 
-  async function handleDownload() {
-    setDownloading(true); setError(null)
+  async function handleDownload(format: "pdf" | "docx") {
+    setDownloading(format); setError(null)
     try {
-      const blob = await generateProjectReport(project.projectBrief.projectNumber)
+      const blob = await generateProjectReport(project.projectBrief.projectNumber, format)
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
+      const safeName = project.projectBrief.projectNumber.replace(/[^a-zA-Z0-9_\- ]/g, "").trim().replace(/ /g, "_")
       a.href = url
-      a.download = `report-${project.projectBrief.projectNumber}.pdf`
+      a.download = `${safeName}_RA.${format}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -196,7 +230,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     } catch (e: any) {
       setError(e.message)
     } finally {
-      setDownloading(false)
+      setDownloading(null)
     }
   }
 
@@ -205,9 +239,22 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
       <div className="pv-header">
         <button className="pv-back-btn" onClick={onBack}>← Projects</button>
         <h2 className="pv-title">{project.projectBrief.projectNumber}</h2>
-        <button onClick={handleDownload} disabled={downloading}>
-          {downloading ? "Generating…" : "Download Report"}
-        </button>
+        <div className="download-btn-group">
+          <button
+            className="print-btn"
+            onClick={() => handleDownload("pdf")}
+            disabled={downloading !== null}
+          >
+            {downloading === "pdf" ? <><span className="btn-spinner" />Generating…</> : "⬇ PDF"}
+          </button>
+          <button
+            className="print-btn print-btn-secondary"
+            onClick={() => handleDownload("docx")}
+            disabled={downloading !== null}
+          >
+            {downloading === "docx" ? <><span className="btn-spinner" />Generating…</> : "⬇ Word"}
+          </button>
+        </div>
       </div>
 
       <div className="pv-brief-card">
@@ -229,7 +276,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
           <p className="empty-state">No hazards recorded yet. Add the first hazard above.</p>
         )}
 
-        {project.hazards.map((h) => {
+        {project.hazards.map((h, idx) => {
           const b = getRiskBand(h.hrnScoreBefore)
           return (
             <div key={h.id} className="pv-hazard-card">
@@ -238,6 +285,14 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
                 <span className="pv-risk-badge" style={{ background: b.bg, color: b.fg }}>
                   {h.riskBandBefore} — {h.hrnScoreBefore}
                 </span>
+                <button
+                  className="pv-edit-btn"
+                  onClick={() => { if (!showForm) startEditHazard(idx) }}
+                  disabled={showForm}
+                  title="Edit hazard"
+                >
+                  Edit
+                </button>
               </div>
               <div className="pv-hazard-detail"><strong>Location:</strong> {h.location}</div>
               {h.task && <div className="pv-hazard-detail"><strong>Task:</strong> {h.task}</div>}
@@ -252,7 +307,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
 
         {showForm && (
           <div className="pv-add-form">
-            <h4>New Hazard</h4>
+            <h4>{editingHazardIdx !== null ? `Edit Hazard ${project.hazards[editingHazardIdx]?.id}` : "New Hazard"}</h4>
 
             <div className="pv-form-group">
               <span className="pv-label">Photo</span>
@@ -275,7 +330,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
                 </button>
                 {photoFile && (
                   <button type="button" className="primary-btn" onClick={handleAnalyse} disabled={analysing}>
-                    {analysing ? "Analysing…" : "Analyse with AI"}
+                    {analysing ? <><span className="btn-spinner" />Analysing…</> : "Analyse with AI"}
                   </button>
                 )}
               </div>
@@ -348,7 +403,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
               onClick={handleValidate}
               disabled={validating || (hazardTypes.length === 0 && !aiResult)}
             >
-              {validating ? "Validating with AI…" : "Validate HRN with AI"}
+              {validating ? <><span className="btn-spinner" />Validating with AI…</> : "Validate HRN with AI"}
             </button>
 
             {validation && (
@@ -375,7 +430,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
             <div className="pv-form-actions">
               <button type="button" className="pv-outline-btn" onClick={resetForm}>Cancel</button>
               <button type="button" className="primary-btn" onClick={handleSaveHazard} disabled={saving}>
-                {saving ? "Saving…" : "Save Hazard"}
+                {saving ? <><span className="btn-spinner" />Saving…</> : editingHazardIdx !== null ? "Save Changes" : "Save Hazard"}
               </button>
             </div>
           </div>

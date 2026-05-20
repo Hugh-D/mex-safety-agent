@@ -173,7 +173,7 @@ export default function DesignReview() {
         {error && <p className="error-msg">{error}</p>}
 
         <button onClick={handleAnalyse} disabled={loading} className="primary-btn">
-          {loading ? loadingStage || "Analysing…" : "Analyse Drawing"}
+          {loading ? <><span className="btn-spinner" />{loadingStage || "Analysing…"}</> : "Analyse Drawing"}
         </button>
       </section>
 
@@ -242,14 +242,14 @@ export default function DesignReview() {
                 onClick={() => handleDownload("pdf")}
                 disabled={downloading !== null}
               >
-                {downloading === "pdf" ? "Generating…" : "⬇ PDF"}
+                {downloading === "pdf" ? <><span className="btn-spinner" />Generating…</> : "⬇ PDF"}
               </button>
               <button
                 className="print-btn print-btn-secondary"
                 onClick={() => handleDownload("docx")}
                 disabled={downloading !== null}
               >
-                {downloading === "docx" ? "Generating…" : "⬇ Word"}
+                {downloading === "docx" ? <><span className="btn-spinner" />Generating…</> : "⬇ Word"}
               </button>
             </div>
           </div>
