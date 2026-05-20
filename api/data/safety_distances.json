@@ -1,0 +1,379 @@
+{
+  "_source": "AS/NZS 4024.1801:2014 (identical to ISO 13857:2008)",
+  "_note": "No interpolation permitted. For intermediate values snap a DOWN and b DOWN to next lower tabulated value (Annex A).",
+
+  "reaching_upward": {
+    "_clause": "4.2.1",
+    "_description": "Minimum height of hazard zone above reference plane for upward reach. If hazard zone >= this height, no horizontal safety distance required for upward reach scenario.",
+    "low_risk_mm": 2500,
+    "high_risk_mm": 2700
+  },
+
+  "reaching_over": {
+    "_clause": "4.2.2",
+    "_description": "Safety distances for reaching over a protective structure. a = hazard zone height (mm), b = protective structure height (mm), c = required horizontal safety distance (mm). 0 means no horizontal distance required (hazard unreachable). Snap a and b DOWN to next lower tabulated value when intermediate.",
+    "low_risk": {
+      "_table": "Table 1",
+      "_note": "Protective structures < 1000 mm not included. For hazard zones > 2500 mm refer to reaching_upward.",
+      "b_values_mm": [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2500],
+      "rows": [
+        {"a_mm": 2500, "c_mm": [0,   0,   0,   0,   0,   0,   0,   0,   0]},
+        {"a_mm": 2400, "c_mm": [100, 100, 100, 100, 100, 100, 100, 100,   0]},
+        {"a_mm": 2200, "c_mm": [600, 600, 500, 500, 400, 350, 250,   0,   0]},
+        {"a_mm": 2000, "c_mm": [1100, 900, 700, 600, 500, 350,   0,   0,   0]},
+        {"a_mm": 1800, "c_mm": [1100, 1000, 900, 900, 600,   0,   0,   0,   0]},
+        {"a_mm": 1600, "c_mm": [1300, 1000, 900, 900, 500,   0,   0,   0,   0]},
+        {"a_mm": 1400, "c_mm": [1300, 1000, 900, 800, 100,   0,   0,   0,   0]},
+        {"a_mm": 1200, "c_mm": [1400, 1000, 900, 500,   0,   0,   0,   0,   0]},
+        {"a_mm": 1000, "c_mm": [1400, 1000, 900, 300,   0,   0,   0,   0,   0]},
+        {"a_mm":  800, "c_mm": [1300,  900, 600,   0,   0,   0,   0,   0,   0]},
+        {"a_mm":  600, "c_mm": [1200,  500,   0,   0,   0,   0,   0,   0,   0]},
+        {"a_mm":  400, "c_mm": [1200,  300,   0,   0,   0,   0,   0,   0,   0]},
+        {"a_mm":  200, "c_mm": [1100,  200,   0,   0,   0,   0,   0,   0,   0]},
+        {"a_mm":    0, "c_mm": [1100,  200,   0,   0,   0,   0,   0,   0,   0]}
+      ]
+    },
+    "high_risk": {
+      "_table": "Table 2",
+      "_note": "Protective structures < 1400 mm should not be used without additional safety measures. For hazard zones > 2700 mm refer to reaching_upward.",
+      "b_values_mm": [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2500, 2700],
+      "rows": [
+        {"a_mm": 2700, "c_mm": [0,    0,    0,    0,    0,    0,    0,    0,    0,   0]},
+        {"a_mm": 2600, "c_mm": [900,  800,  700,  600,  600,  500,  400,  300,  100, 0]},
+        {"a_mm": 2400, "c_mm": [1100, 1000, 900,  800,  700,  600,  400,  300,  100, 0]},
+        {"a_mm": 2200, "c_mm": [1300, 1200, 1000, 900,  800,  600,  400,  300,    0, 0]},
+        {"a_mm": 2000, "c_mm": [1400, 1300, 1100, 1100, 900,  800,  600,  400,    0, 0]},
+        {"a_mm": 1800, "c_mm": [1500, 1400, 1100, 900,  800,  600,    0,    0,    0, 0]},
+        {"a_mm": 1600, "c_mm": [1500, 1400, 1100, 900,  800,  500,    0,    0,    0, 0]},
+        {"a_mm": 1400, "c_mm": [1500, 1400, 1100, 900,  800,    0,    0,    0,    0, 0]},
+        {"a_mm": 1200, "c_mm": [1500, 1400, 1100, 900,  700,    0,    0,    0,    0, 0]},
+        {"a_mm": 1000, "c_mm": [1500, 1400, 1000, 800,    0,    0,    0,    0,    0, 0]},
+        {"a_mm":  800, "c_mm": [1500, 1300, 900,  600,    0,    0,    0,    0,    0, 0]},
+        {"a_mm":  600, "c_mm": [1400, 1300, 800,    0,    0,    0,    0,    0,    0, 0]},
+        {"a_mm":  400, "c_mm": [1400, 1200, 400,    0,    0,    0,    0,    0,    0, 0]},
+        {"a_mm":  200, "c_mm": [1200, 900,    0,    0,    0,    0,    0,    0,    0, 0]},
+        {"a_mm":    0, "c_mm": [1100, 500,    0,    0,    0,    0,    0,    0,    0, 0]}
+      ]
+    }
+  },
+
+  "reaching_around": {
+    "_clause": "4.2.3",
+    "_table": "Table 3",
+    "_description": "Safety distances for reaching around a protective structure with limitation of movement. sr = radial safety distance (mm). Obstacle must be >= 300 mm long to use values shorter than 850 mm.",
+    "entries": [
+      {
+        "key": "shoulder_armpit",
+        "limitation": "Limitation of movement only at shoulder and armpit",
+        "sr_mm": 850
+      },
+      {
+        "key": "elbow",
+        "limitation": "Arm supported up to elbow (obstacle depth approx 300 mm)",
+        "sr_mm": 550
+      },
+      {
+        "key": "wrist",
+        "limitation": "Arm supported up to wrist (obstacle depth approx 620 mm)",
+        "sr_mm": 230
+      },
+      {
+        "key": "knuckle",
+        "limitation": "Arm and hand supported up to knuckle joint (obstacle depth approx 720 mm)",
+        "sr_mm": 130
+      }
+    ]
+  },
+
+  "reaching_through_adults": {
+    "_clause": "4.2.4.1",
+    "_table": "Table 4",
+    "_description": "Safety distances sr (mm) for reaching through regular openings — persons 14 years and above. e = opening dimension (side of square, diameter of round, or narrowest slot dimension). For openings > 120 mm use reaching_over values.",
+    "_shapes": "slot | square | round",
+    "ranges": [
+      {
+        "e_min_mm": 0,
+        "e_max_mm": 4,
+        "body_part": "fingertip",
+        "slot_sr_mm": 2,
+        "square_sr_mm": 2,
+        "round_sr_mm": 2
+      },
+      {
+        "e_min_mm": 4,
+        "e_max_mm": 6,
+        "body_part": "fingertip",
+        "slot_sr_mm": 10,
+        "square_sr_mm": 5,
+        "round_sr_mm": 5
+      },
+      {
+        "e_min_mm": 6,
+        "e_max_mm": 8,
+        "body_part": "finger_to_knuckle",
+        "slot_sr_mm": 20,
+        "square_sr_mm": 15,
+        "round_sr_mm": 5
+      },
+      {
+        "e_min_mm": 8,
+        "e_max_mm": 10,
+        "body_part": "finger_to_knuckle",
+        "slot_sr_mm": 80,
+        "square_sr_mm": 25,
+        "round_sr_mm": 20
+      },
+      {
+        "e_min_mm": 10,
+        "e_max_mm": 12,
+        "body_part": "finger_to_knuckle",
+        "slot_sr_mm": 100,
+        "square_sr_mm": 80,
+        "round_sr_mm": 80
+      },
+      {
+        "e_min_mm": 12,
+        "e_max_mm": 20,
+        "body_part": "finger_to_knuckle",
+        "slot_sr_mm": 120,
+        "square_sr_mm": 120,
+        "round_sr_mm": 120
+      },
+      {
+        "e_min_mm": 20,
+        "e_max_mm": 30,
+        "body_part": "hand",
+        "slot_sr_mm": 850,
+        "square_sr_mm": 120,
+        "round_sr_mm": 120,
+        "slot_note": "If slot length <= 65 mm, thumb acts as stop and slot_sr can be reduced to 200 mm"
+      },
+      {
+        "e_min_mm": 30,
+        "e_max_mm": 40,
+        "body_part": "arm_to_shoulder",
+        "slot_sr_mm": 850,
+        "square_sr_mm": 200,
+        "round_sr_mm": 120
+      },
+      {
+        "e_min_mm": 40,
+        "e_max_mm": 120,
+        "body_part": "arm_to_shoulder",
+        "slot_sr_mm": 850,
+        "square_sr_mm": 850,
+        "round_sr_mm": 850
+      }
+    ]
+  },
+
+  "reaching_through_children": {
+    "_clause": "4.2.4.2",
+    "_table": "Table 5",
+    "_description": "Safety distances sr (mm) for reaching through regular openings — persons 3 years and above (5th percentile stature approx 900 mm). For openings > 100 mm use reaching_over values.",
+    "_shapes": "slot | square | round",
+    "ranges": [
+      {
+        "e_min_mm": 0,
+        "e_max_mm": 4,
+        "body_part": "fingertip",
+        "slot_sr_mm": 2,
+        "square_sr_mm": 2,
+        "round_sr_mm": 2
+      },
+      {
+        "e_min_mm": 4,
+        "e_max_mm": 6,
+        "body_part": "fingertip",
+        "slot_sr_mm": 20,
+        "square_sr_mm": 10,
+        "round_sr_mm": 10
+      },
+      {
+        "e_min_mm": 6,
+        "e_max_mm": 8,
+        "body_part": "finger_to_knuckle",
+        "slot_sr_mm": 40,
+        "square_sr_mm": 30,
+        "round_sr_mm": 20
+      },
+      {
+        "e_min_mm": 8,
+        "e_max_mm": 10,
+        "body_part": "finger_to_knuckle",
+        "slot_sr_mm": 80,
+        "square_sr_mm": 60,
+        "round_sr_mm": 60
+      },
+      {
+        "e_min_mm": 10,
+        "e_max_mm": 12,
+        "body_part": "finger_to_knuckle",
+        "slot_sr_mm": 100,
+        "square_sr_mm": 80,
+        "round_sr_mm": 80
+      },
+      {
+        "e_min_mm": 12,
+        "e_max_mm": 20,
+        "body_part": "hand",
+        "slot_sr_mm": 900,
+        "square_sr_mm": 120,
+        "round_sr_mm": 120,
+        "slot_note": "If slot length <= 40 mm, thumb acts as stop and slot_sr can be reduced to 120 mm"
+      },
+      {
+        "e_min_mm": 20,
+        "e_max_mm": 30,
+        "body_part": "arm_to_shoulder",
+        "slot_sr_mm": 900,
+        "square_sr_mm": 550,
+        "round_sr_mm": 120
+      },
+      {
+        "e_min_mm": 30,
+        "e_max_mm": 100,
+        "body_part": "arm_to_shoulder",
+        "slot_sr_mm": 900,
+        "square_sr_mm": 900,
+        "round_sr_mm": 900
+      }
+    ]
+  },
+
+  "reaching_around_additional": {
+    "_clause": "4.2.5",
+    "_table": "Table 6",
+    "_description": "Safety distances when additional protective structures further limit limb movement. s11, s12, s13, s14 are radial safety distances (mm) for multi-structure configurations.",
+    "entries": [
+      {
+        "key": "two_structures_wrist_elbow",
+        "description": "Two separate protective structures — one permits movement from the wrist, the other from the elbow. Limitation at shoulder and armpit.",
+        "distances_mm": {
+          "s11": 230,
+          "s12": 550,
+          "s13": 850
+        }
+      },
+      {
+        "key": "one_structure_knuckle",
+        "description": "One separate protective structure — permits movement from the fingers up to the knuckle joint. Limitation at shoulder and armpit.",
+        "distances_mm": {
+          "s13": 850,
+          "s14": 130
+        }
+      }
+    ]
+  },
+
+  "lower_limb_through": {
+    "_clause": "4.3",
+    "_table": "Table 7",
+    "_description": "Safety distances sr (mm) for reaching through openings by lower limbs — persons 14 years and above. Use only where upper limb access through the opening is not foreseeable. Values are independent of clothing or footwear. e = opening dimension (slot width, square side, or circle diameter).",
+    "_note": "Slot openings e > 180 mm and square/round openings e > 240 mm allow whole body access.",
+    "ranges": [
+      {
+        "e_min_mm": 0,
+        "e_max_mm": 5,
+        "body_part": "toe_tip",
+        "slot_sr_mm": 0,
+        "square_round_sr_mm": 0
+      },
+      {
+        "e_min_mm": 5,
+        "e_max_mm": 15,
+        "body_part": "toe_tip",
+        "slot_sr_mm": 0,
+        "square_round_sr_mm": 0
+      },
+      {
+        "e_min_mm": 15,
+        "e_max_mm": 35,
+        "body_part": "toe",
+        "slot_sr_mm": 80,
+        "square_round_sr_mm": 25,
+        "slot_note": "If slot length <= 75 mm, can be reduced to 50 mm"
+      },
+      {
+        "e_min_mm": 35,
+        "e_max_mm": 60,
+        "body_part": "foot",
+        "slot_sr_mm": 180,
+        "square_round_sr_mm": 80
+      },
+      {
+        "e_min_mm": 60,
+        "e_max_mm": 80,
+        "body_part": "foot",
+        "slot_sr_mm": 650,
+        "square_round_sr_mm": 180
+      },
+      {
+        "e_min_mm": 80,
+        "e_max_mm": 95,
+        "body_part": "leg_toe_to_knee",
+        "slot_sr_mm": 1100,
+        "square_round_sr_mm": 650
+      },
+      {
+        "e_min_mm": 95,
+        "e_max_mm": 180,
+        "body_part": "leg_toe_to_crotch",
+        "slot_sr_mm": 1100,
+        "square_round_sr_mm": 1100
+      },
+      {
+        "e_min_mm": 180,
+        "e_max_mm": 240,
+        "body_part": "leg_toe_to_crotch",
+        "slot_sr_mm": null,
+        "slot_sr_note": "Not admissible",
+        "square_round_sr_mm": 1100
+      }
+    ]
+  },
+
+  "impede_lower_limbs": {
+    "_clause": "Annex B",
+    "_table": "Table B.1",
+    "_description": "Distances to impede free access by lower limbs under an existing protective structure. h = height from ground/reference plane to the protective structure (mm). l = required horizontal distance from person to structure (mm). These are NOT safety distances — additional precautions may be required. No interpolation. Three cases based on geometry: Case 1 = person outside single structure; Case 2 = person between two parallel structures; Case 3 = person at corner between two perpendicular structures.",
+    "_warning": "Where there is a risk of slipping or misuse, these values may be inappropriate.",
+    "ranges": [
+      {
+        "h_min_mm": 0,
+        "h_max_mm": 200,
+        "case1_l_mm": 340,
+        "case2_l_mm": 665,
+        "case3_l_mm": 290
+      },
+      {
+        "h_min_mm": 200,
+        "h_max_mm": 400,
+        "case1_l_mm": 550,
+        "case2_l_mm": 765,
+        "case3_l_mm": 615
+      },
+      {
+        "h_min_mm": 400,
+        "h_max_mm": 600,
+        "case1_l_mm": 850,
+        "case2_l_mm": 950,
+        "case3_l_mm": 800
+      },
+      {
+        "h_min_mm": 600,
+        "h_max_mm": 800,
+        "case1_l_mm": 950,
+        "case2_l_mm": 950,
+        "case3_l_mm": 900
+      },
+      {
+        "h_min_mm": 800,
+        "h_max_mm": 1000,
+        "case1_l_mm": 1125,
+        "case2_l_mm": 1195,
+        "case3_l_mm": 1015
+      }
+    ]
+  }
+}

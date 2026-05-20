@@ -19,11 +19,16 @@ app = FastAPI(
 
 _DEFAULT_ORIGINS = [
     "http://localhost:5173",
+    "http://localhost:8082",
     "http://localhost:19006",
     "http://localhost:19007",
 ]
 _cors_env = os.environ.get("CORS_ORIGINS", "").strip()
-_allowed_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _DEFAULT_ORIGINS
+_ORIGIN_RE = __import__("re").compile(r"^https?://[\w.\-]+(:\d+)?$")
+_allowed_origins = (
+    [o for o in (o.strip() for o in _cors_env.split(",")) if o and _ORIGIN_RE.match(o)]
+    or _DEFAULT_ORIGINS
+)
 
 app.add_middleware(
     CORSMiddleware,

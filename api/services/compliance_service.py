@@ -159,6 +159,90 @@ Return JSON with this exact structure:
     return _parse_json(response.content[0].text)
 
 
+def extract_topology(
+    image_bytes: bytes,
+    dxf_components: list[dict],
+) -> dict[str, Any] | None:
+    """
+    Extract wiring topology (connections + channel/series assignments) from a drawing image.
+    Uses DXF component IDs as ground truth. Called in parallel with analyse_drawing.
+    Returns {"components": [...], "connections": [...]} or None on failure.
+    """
+    if not dxf_components:
+        return None
+
+    client = _client()
+    b64 = base64.standard_b64encode(image_bytes).decode()
+
+    is_pdf = image_bytes[:4] == b"%PDF"
+    if is_pdf:
+        media_type = "application/pdf"
+    elif image_bytes[:4] == b"\x89PNG":
+        media_type = "image/png"
+    elif image_bytes[:3] == b"\xff\xd8\xff":
+        media_type = "image/jpeg"
+    else:
+        media_type = "image/jpeg"
+
+    comp_list = "\n".join(
+        f"  {c.get('id', c.get('tag', '?'))}: {c.get('compliance_type', 'unknown')}"
+        for c in dxf_components
+    )
+
+    prompt = f"""\
+Known safety components from the DXF file (use these IDs exactly):
+{comp_list}
+
+Trace only the wiring topology of this safety circuit drawing.
+
+For each component, determine:
+- channel: "CH1", "CH2", or null if single-channel
+- series_group: shared label for components wired in series (e.g. "ch1_inputs"), or null
+
+Trace every wiring connection between the listed components.
+wire_type: "safety" = main safety chain, "feedback" = output feedback to relay,
+           "power" = 24VDC/0VDC supply, "control" = reset/enable signals.
+
+Return JSON only — no prose:
+{{
+  "components": [
+    {{"id": "<exact ID from list>", "channel": "<CH1|CH2|null>", "series_group": "<label or null>"}}
+  ],
+  "connections": [
+    {{"from_id": "<source>", "to_id": "<dest>", "from_port": "<terminal or null>",
+      "to_port": "<terminal or null>", "wire_type": "<safety|power|control|feedback>",
+      "label": "<wire number or null>"}}
+  ]
+}}
+"""
+
+    file_block: dict[str, Any] = (
+        {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": b64}}
+        if is_pdf
+        else {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}}
+    )
+
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=4096,
+            system=[{
+                "type": "text",
+                "text": (
+                    "You are an electrical engineer tracing safety circuit wiring topology. "
+                    "Return only valid JSON matching the requested schema. No prose outside JSON."
+                ),
+                "cache_control": {"type": "ephemeral"},
+            }],
+            messages=[{"role": "user", "content": [file_block, {"type": "text", "text": prompt}]}],
+        )
+        return _parse_json(response.content[0].text)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("extract_topology failed: %s", exc)
+        return None
+
+
 def review_design_document(
     document_text: str,
     target_pl: str,

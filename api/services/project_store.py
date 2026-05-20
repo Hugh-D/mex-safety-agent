@@ -23,7 +23,10 @@ def _get_lock(project_number: str) -> threading.Lock:
 
 
 def _project_file(project_number: str) -> Path:
-    safe_name = project_number.replace("/", "_").replace("\\", "_")
+    safe_name = project_number
+    for char in '/\\<>:"|?*':
+        safe_name = safe_name.replace(char, "_")
+    safe_name = safe_name.rstrip(". ") or "unnamed"
     return PROJECTS_DIR / f"{safe_name}.json"
 
 
@@ -46,4 +49,12 @@ def load_project(project_number: str) -> Optional[AssessmentProject]:
 
 
 def list_projects() -> List[str]:
-    return [path.stem for path in PROJECTS_DIR.glob("*.json")]
+    results = []
+    for path in PROJECTS_DIR.glob("*.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            project_number = data.get("project_brief", {}).get("project_number") or path.stem
+        except (json.JSONDecodeError, OSError):
+            project_number = path.stem
+        results.append(project_number)
+    return results

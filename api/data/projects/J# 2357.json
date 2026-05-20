@@ -1,0 +1,17 @@
+{
+  "project_brief": {
+    "project_number": "J# 2357",
+    "client": "MEX ",
+    "site": "Home",
+    "machine_or_line": "Filler 1",
+    "assessment_date": "2026-05-13",
+    "team": [],
+    "scope_description": "",
+    "standards_applicable": [],
+    "lifecycle_exclusions": []
+  },
+  "hazards": [],
+  "created_at": "2026-05-13T00:34:22.820000Z",
+  "updated_at": "2026-05-13T00:34:22.827098",
+  "status": "draft"
+}

@@ -1,0 +1,54 @@
+{
+  "project_brief": {
+    "project_number": "PR 0001",
+    "client": "Bugs Bunny",
+    "site": "Rabbit Hole",
+    "machine_or_line": "Thumper pumper",
+    "assessment_date": "2026-05-20",
+    "team": [],
+    "scope_description": "",
+    "standards_applicable": [],
+    "lifecycle_exclusions": []
+  },
+  "hazards": [
+    {
+      "id": "H01",
+      "location": "rear of machine",
+      "mode": "Operation",
+      "task": "Working around active part of machine",
+      "hazard_types": [
+        "Crushing",
+        "Drawing-in",
+        "Falling",
+        "Noise"
+      ],
+      "photos": [],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 8.0,
+        "FE": 2.5,
+        "DPH": 8.0,
+        "NP": 1.0
+      },
+      "hrn_score_before": 160.0,
+      "risk_band_before": "Very High",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "ai_validation_flags": [
+        "No risk reduction measures are recorded — the HRN score of 160 falls in the 'Very High' band (>100–500) and demands immediate action per the HRN banding hierarchy; continued operation without safeguards is not justifiable under ISO 12100:2011 Clause 6.1 hierarchy.",
+        "Crushing and Drawing-in hazards at an active machine with no guard visible require Table 2 (high-risk) safety distances per AS/NZS 4024.1801:2014 Clause 4.1.2 — no guard geometry or safety distance compliance has been recorded.",
+        "Minimum crushing gap compliance per AS/NZS 4024.1803:2019 Table 1 (finger = 25 mm, hand = 100 mm, arm = 120 mm) has not been assessed or documented.",
+        "Noise hazard identified but no exposure assessment referenced — AS/NZS 4024.1302 Clause 4.2 requires health hazard (including noise) risk to be assessed separately; DPH for cumulative noise-induced hearing loss may require a dedicated assessment per AS/NZS 4024.1303 Clause 5.4.3.2.",
+        "Falling hazard identified but no height, energy, or consequence data provided — this hazard type should be assessed as a separate HRN line item rather than aggregated with mechanical hazards, as ISO 12100:2011 Clause 5.5 requires each hazardous situation to be estimated individually.",
+        "LO = 8 is accepted as consistent with an active unguarded machine with no administrative controls documented — no challenge raised on LO, but this must be re-evaluated downward only if formal, verified access controls are implemented per the rule that LO may not be reduced to 0.033 without documented and audited administrative controls.",
+        "DPH: entered 8 → recommended 15. The scene involves multiple concurrent hazard types — Crushing, Drawing-in, Falling, and Noise. DPH = 8 (serious laceration / fracture) is likely an underestimate when crushing and drawing-in hazards are simultaneously present at an active machine. ISO 12100:2011 Clause 5.5.2.2 requires severity estimation to reflect the worst credible harm; drawing-in and crushing at an unguarded active machine can result in degloving, amputation, or fatality. Per AS/NZS 4024.1303 Clause 5.4.2, the most severe harm that can realistically occur must be used. DPH should be elevated to at least 15 (amputation / permanent severe disability) given the combination of drawing-in and crushing, consistent with AS/NZS 4024.1803:2019 Table 1 which identifies finger, hand, arm, and whole-body crushing gaps — all implying potentially irreversible harm at an active machine.",
+        "NP: entered 1 → recommended 2. NP = 1 reflects a single person exposed. However, the scene description states 'working around active part of machine' without qualification restricting exposure to a single individual. In typical production environments, maintenance personnel, supervisors, or co-workers routinely enter the zone, particularly when no guards are present. ISO 12100:2011 Clause 5.5.2.3.1 requires exposure estimation to account for all persons foreseeably in the hazard zone. Unless formal access restriction is documented and verified (e.g. exclusion zone with administrative controls per AS/NZS 4024.1303 Clause 8.6), NP should reflect at least 2 persons. Accepting NP = 1 without supporting evidence is non-conservative."
+      ],
+      "ai_recommendations": [],
+      "ai_logs": []
+    }
+  ],
+  "created_at": "2026-05-20T01:27:55.549000Z",
+  "updated_at": "2026-05-20T01:32:54.087649",
+  "status": "draft"
+}

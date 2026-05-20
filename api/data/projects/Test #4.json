@@ -1,0 +1,17 @@
+{
+  "project_brief": {
+    "project_number": "Test #4",
+    "client": "Sponge Bob",
+    "site": "Square House",
+    "machine_or_line": "Squash 2",
+    "assessment_date": "2026-05-20",
+    "team": [],
+    "scope_description": "",
+    "standards_applicable": [],
+    "lifecycle_exclusions": []
+  },
+  "hazards": [],
+  "created_at": "2026-05-20T01:01:19.451000Z",
+  "updated_at": "2026-05-20T01:01:19.756515",
+  "status": "draft"
+}

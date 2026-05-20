@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import io
 from typing import Any, Optional
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from services import compliance_service, dxf_parser
@@ -42,6 +44,26 @@ class NonConformance(BaseModel):
     remediation: str
 
 
+class TopologyComponent(BaseModel):
+    id: str
+    channel: Optional[str]
+    seriesGroup: Optional[str]
+
+
+class TopologyConnection(BaseModel):
+    fromId: str
+    toId: str
+    fromPort: Optional[str]
+    toPort: Optional[str]
+    wireType: str
+    label: Optional[str]
+
+
+class TopologyResult(BaseModel):
+    components: list[TopologyComponent]
+    connections: list[TopologyConnection]
+
+
 class DrawingAnalysisResponse(BaseModel):
     drawingType: str
     componentsIdentified: list[ComponentIdentified]
@@ -51,6 +73,8 @@ class DrawingAnalysisResponse(BaseModel):
     gapToTarget: str
     gapSummary: str
     overallVerdict: str
+    topology: Optional[TopologyResult] = None
+    svgDiagram: Optional[str] = None
 
 
 class SafetyFunctionFound(BaseModel):
@@ -83,6 +107,15 @@ class DesignReviewResponse(BaseModel):
     recommendations: list[str]
 
 
+class ComplianceReportRequest(BaseModel):
+    drawingTitle: str
+    targetPl: str
+    targetCategory: str
+    format: str = "pdf"
+    analysis: dict[str, Any]
+    svgDiagram: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -97,24 +130,90 @@ async def analyse_drawing(
 ) -> DrawingAnalysisResponse:
     """
     Upload a safety drawing image (PNG/JPG/PDF) and analyse it against a PLr/Category target.
-    Optionally also upload the source DXF — if provided, the parsed component list is injected
-    into the Claude prompt as authoritative structured context.
+    When a DXF is also provided, topology extraction runs in parallel with the compliance
+    analysis so there is no additional wait time.
     """
     image_bytes = await file.read()
+    parsed_dxf = None
     dxf_context: Optional[str] = None
+    dxf_safety_components: list[dict] = []
+
     if dxf_file is not None:
         try:
             dxf_bytes = await dxf_file.read()
-            parsed = dxf_parser.parse_dxf(dxf_bytes, dxf_file.filename or "drawing.dxf")
-            dxf_context = parsed.as_context_text()
+            parsed_dxf = dxf_parser.parse_dxf(dxf_bytes, dxf_file.filename or "drawing.dxf")
+            dxf_context = parsed_dxf.as_context_text()
+            dxf_safety_components = [
+                {
+                    "id":              c.tag or c.block_name,
+                    "tag":             c.tag,
+                    "compliance_type": c.compliance_type,
+                    "component_type":  c.component_type,
+                }
+                for c in parsed_dxf.safety_components
+            ]
         except Exception:
-            pass  # DXF parse failure is non-fatal — image analysis continues without it
+            pass  # DXF failure is non-fatal
+
+    # Run compliance analysis + topology in parallel when DXF components are available
+    topology_raw: Optional[dict] = None
     try:
-        raw = compliance_service.analyse_drawing(
-            image_bytes, drawing_title, target_pl, target_category, context, dxf_context
-        )
+        if dxf_safety_components:
+            raw, topology_raw = await asyncio.gather(
+                asyncio.to_thread(
+                    compliance_service.analyse_drawing,
+                    image_bytes, drawing_title, target_pl, target_category, context, dxf_context,
+                ),
+                asyncio.to_thread(
+                    compliance_service.extract_topology,
+                    image_bytes, dxf_safety_components,
+                ),
+            )
+        else:
+            raw = await asyncio.to_thread(
+                compliance_service.analyse_drawing,
+                image_bytes, drawing_title, target_pl, target_category, context, dxf_context,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
+
+    # Generate SLD if topology + DXF both available
+    svg_diagram: Optional[str] = None
+    if topology_raw and parsed_dxf:
+        try:
+            from services import diagram_service
+            non_conformances = raw.get("non_conformances", [])
+            svg_diagram = diagram_service.build_diagram_svg(parsed_dxf, topology_raw, non_conformances)
+        except Exception:
+            pass  # diagram failure is non-fatal
+
+    # Map topology raw dict to response model
+    topology_result: Optional[TopologyResult] = None
+    if topology_raw:
+        try:
+            topology_result = TopologyResult(
+                components=[
+                    TopologyComponent(
+                        id=c.get("id", ""),
+                        channel=c.get("channel"),
+                        seriesGroup=c.get("series_group"),
+                    )
+                    for c in topology_raw.get("components", [])
+                ],
+                connections=[
+                    TopologyConnection(
+                        fromId=c.get("from_id", ""),
+                        toId=c.get("to_id", ""),
+                        fromPort=c.get("from_port"),
+                        toPort=c.get("to_port"),
+                        wireType=c.get("wire_type", "safety"),
+                        label=c.get("label"),
+                    )
+                    for c in topology_raw.get("connections", [])
+                ],
+            )
+        except Exception:
+            pass
 
     def _map_component(c: dict) -> ComponentIdentified:
         return ComponentIdentified(
@@ -152,7 +251,51 @@ async def analyse_drawing(
         gapToTarget=raw.get("gap_to_target", ""),
         gapSummary=raw.get("gap_summary", ""),
         overallVerdict=raw.get("overall_verdict", ""),
+        topology=topology_result,
+        svgDiagram=svg_diagram,
     )
+
+
+@router.post("/compliance/report")
+async def generate_compliance_report(req: ComplianceReportRequest) -> Response:
+    """
+    Generate a branded PDF or DOCX compliance report from a drawing analysis result.
+    format: "pdf" (default) or "docx"
+    """
+    fmt = req.format.lower().strip()
+    if fmt not in ("pdf", "docx"):
+        raise HTTPException(status_code=400, detail='format must be "pdf" or "docx"')
+
+    try:
+        from services import compliance_report
+        if fmt == "pdf":
+            data = await asyncio.to_thread(
+                compliance_report.generate_pdf,
+                req.drawingTitle, req.targetPl, req.targetCategory,
+                req.analysis, req.svgDiagram,
+            )
+            safe_title = req.drawingTitle.replace(" ", "_").replace("/", "-")[:40]
+            filename = f"{safe_title}_Compliance_Review.pdf"
+            return Response(
+                content=data,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+        else:
+            data = await asyncio.to_thread(
+                compliance_report.generate_docx,
+                req.drawingTitle, req.targetPl, req.targetCategory,
+                req.analysis, req.svgDiagram,
+            )
+            safe_title = req.drawingTitle.replace(" ", "_").replace("/", "-")[:40]
+            filename = f"{safe_title}_Compliance_Review.docx"
+            return Response(
+                content=data,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {exc}")
 
 
 class ParsedComponentOut(BaseModel):
@@ -184,11 +327,7 @@ class DxfParseResponse(BaseModel):
 
 @router.post("/compliance/dxf", response_model=DxfParseResponse)
 async def parse_dxf_drawing(file: UploadFile = File(...)) -> DxfParseResponse:
-    """
-    Parse a DXF file using the MEX symbol library.
-    Returns a structured component inventory with safety classification.
-    Use contextText to feed the parsed data into a subsequent drawing analysis.
-    """
+    """Parse a DXF file using the MEX symbol library."""
     data = await file.read()
     fname = file.filename or "drawing.dxf"
     try:
@@ -205,16 +344,10 @@ async def parse_dxf_drawing(file: UploadFile = File(...)) -> DxfParseResponse:
         unknownBlockCount=len(set(parsed.unknown_blocks)),
         components=[
             ParsedComponentOut(
-                blockName=c.block_name,
-                tag=c.tag,
-                description=c.description,
-                location=c.location,
-                x=c.x,
-                y=c.y,
-                componentType=c.component_type,
-                complianceType=c.compliance_type,
-                safetyRelevant=c.safety_relevant,
-                safetyNote=c.safety_note,
+                blockName=c.block_name, tag=c.tag, description=c.description,
+                location=c.location, x=c.x, y=c.y,
+                componentType=c.component_type, complianceType=c.compliance_type,
+                safetyRelevant=c.safety_relevant, safetyNote=c.safety_note,
                 orientation=c.orientation,
             )
             for c in parsed.components
@@ -255,10 +388,7 @@ def review_design(request: DesignReviewRequest) -> DesignReviewResponse:
     """Review a design document (text) for safety function completeness."""
     try:
         raw = compliance_service.review_design_document(
-            request.documentText,
-            request.targetPl,
-            request.targetCategory,
-            request.raHazardIds,
+            request.documentText, request.targetPl, request.targetCategory, request.raHazardIds,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
@@ -266,18 +396,15 @@ def review_design(request: DesignReviewRequest) -> DesignReviewResponse:
     return DesignReviewResponse(
         safetyFunctionsIdentified=[
             SafetyFunctionFound(
-                name=sf.get("name", ""),
-                description=sf.get("description", ""),
+                name=sf.get("name", ""), description=sf.get("description", ""),
                 implementation=sf.get("implementation", ""),
-                plClaimed=sf.get("pl_claimed", ""),
-                categoryClaimed=sf.get("category_claimed", ""),
+                plClaimed=sf.get("pl_claimed", ""), categoryClaimed=sf.get("category_claimed", ""),
             )
             for sf in raw.get("safety_functions_identified", [])
         ],
         gaps=[
             DesignGap(
-                severity=g.get("severity", ""),
-                description=g.get("description", ""),
+                severity=g.get("severity", ""), description=g.get("description", ""),
                 clauseReference=g.get("clause_reference", ""),
                 recommendation=g.get("recommendation", ""),
             )

@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -52,11 +52,14 @@ class VoiceNote(CamelModel):
     transcript: Optional[str] = None
 
 
-class HRNParameters(CamelModel):
-    LO: float = Field(..., description="Likelihood of Occurrence")
-    FE: float = Field(..., description="Frequency of Exposure")
-    DPH: float = Field(..., description="Degree of Possible Harm")
-    NP: float = Field(..., description="Number of Persons at Risk")
+class HRNParameters(BaseModel):
+    # Explicit aliases keep LO/FE/DPH/NP uppercase in JSON — to_camel() lowercases them.
+    # AliasChoices accepts old lowercase responses from existing mobile sessions.
+    model_config = ConfigDict(populate_by_name=True)
+    LO: float = Field(..., validation_alias=AliasChoices("LO", "lo"), serialization_alias="LO", description="Likelihood of Occurrence")
+    FE: float = Field(..., validation_alias=AliasChoices("FE", "fe"), serialization_alias="FE", description="Frequency of Exposure")
+    DPH: float = Field(..., validation_alias=AliasChoices("DPH", "dph"), serialization_alias="DPH", description="Degree of Possible Harm")
+    NP: float = Field(..., validation_alias=AliasChoices("NP", "np"), serialization_alias="NP", description="Number of Persons at Risk")
     justification: Optional[Dict[str, str]] = None
 
 
@@ -104,7 +107,7 @@ class SafetyFunctionSpec(CamelModel):
 
 
 class ProjectBrief(CamelModel):
-    project_number: str
+    project_number: str = Field(..., pattern=r"^[\w\-\. #]{1,64}$")
     client: str
     site: str
     machine_or_line: str
@@ -163,3 +166,62 @@ class PLRParametersResponse(CamelModel):
     parameters: Dict[str, Any]
     risk_graph: Dict[str, str]
     performance_levels: Dict[str, Any]
+
+
+# ---------------------------------------------------------------------------
+# Safety distance schemas (AS/NZS 4024.1801 — ISO 13857:2008)
+# ---------------------------------------------------------------------------
+
+class ReachingOverRequest(CamelModel):
+    a_mm: float = Field(..., ge=0, le=6000, description="Height of hazard zone above reference plane (mm)")
+    b_mm: float = Field(..., ge=0, le=6000, description="Height of protective structure above reference plane (mm)")
+    risk_level: str = Field(..., pattern=r"^(low|high)$", description="'low' or 'high'")
+
+
+class ReachingOverResponse(CamelModel):
+    c_mm: Optional[float] = Field(None, description="Required horizontal safety distance (mm). 0 = none required.")
+    a_mm_used: float
+    b_mm_used: float
+    risk_level: str
+    flags: List[str] = []
+    error: Optional[str] = None
+
+
+class ReachingThroughRequest(CamelModel):
+    e_mm: float = Field(..., ge=0, le=1000, description="Opening dimension: slot width, square side, or circle diameter (mm)")
+    shape: str = Field(..., pattern=r"^(slot|square|round)$", description="'slot', 'square', or 'round'")
+    age_group: str = Field("adults", pattern=r"^(adults|children)$", description="'adults' (14+) or 'children' (3+)")
+
+
+class ReachingThroughResponse(CamelModel):
+    sr_mm: Optional[float] = Field(None, description="Required safety distance (mm)")
+    body_part: Optional[str] = None
+    e_mm: float
+    shape: str
+    age_group: Optional[str] = None
+    note: Optional[str] = None
+
+
+class LowerLimbThroughRequest(CamelModel):
+    e_mm: float = Field(..., ge=0, le=1000, description="Opening dimension (mm)")
+    shape: str = Field(..., pattern=r"^(slot|square_round)$", description="'slot' or 'square_round'")
+
+
+class LowerLimbThroughResponse(CamelModel):
+    sr_mm: Optional[float] = Field(None, description="Required safety distance (mm)")
+    body_part: Optional[str] = None
+    e_mm: float
+    shape: str
+    note: Optional[str] = None
+
+
+class ImpedeLowerLimbsRequest(CamelModel):
+    h_mm: float = Field(..., ge=0, le=2000, description="Height from ground to protective structure (mm)")
+    case: int = Field(..., ge=1, le=3, description="1=single structure; 2=between two parallel; 3=at corner of two perpendicular")
+
+
+class ImpedeLowerLimbsResponse(CamelModel):
+    l_mm: Optional[float] = Field(None, description="Required horizontal impeding distance (mm)")
+    h_mm: float
+    case: int
+    note: Optional[str] = None

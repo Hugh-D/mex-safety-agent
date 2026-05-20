@@ -1,0 +1,116 @@
+{
+  "project_brief": {
+    "project_number": "J#1234",
+    "client": "MEX",
+    "site": "Workshop",
+    "machine_or_line": "Shrink Tunnel #1",
+    "assessment_date": "2026-05-18",
+    "team": [],
+    "scope_description": "",
+    "standards_applicable": [
+      "AS/NZS 4024.1201",
+      "ISO 13849-1:2015"
+    ],
+    "lifecycle_exclusions": []
+  },
+  "hazards": [
+    {
+      "id": "H01",
+      "location": "East exit. No guard, very hot",
+      "mode": "Operation",
+      "task": "Operator feeds product into open press during normal production",
+      "hazard_types": [
+        "Crushing",
+        "Burn/Scald",
+        "Drawing-in",
+        "Entanglement",
+        "Shearing",
+        "Friction and abrasion",
+        "Impact"
+      ],
+      "photos": [
+        {
+          "filepath": "file:///data/user/0/host.exp.exponent/cache/ImagePicker/5da424a9-e199-425f-9cc7-69719eacae0d.jpeg",
+          "timestamp": "2026-05-18T03:27:08.901000Z",
+          "site_label": "East exit. No guard, very hot",
+          "annotations": []
+        }
+      ],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 8.0,
+        "FE": 4.0,
+        "DPH": 1.0,
+        "NP": 2.0
+      },
+      "hrn_score_before": 64.0,
+      "risk_band_before": "High",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "hrn_after": {
+        "LO": 2.0,
+        "FE": 4.0,
+        "DPH": 1.0,
+        "NP": 2.0
+      },
+      "hrn_score_after": 16.0,
+      "risk_band_after": "Significant",
+      "ai_validation_flags": [
+        "DPH = 1.0 (minor injury) is critically inconsistent with the identified hazard types: Crushing, Drawing-in, Entanglement, and Shearing all carry credible outcomes of amputation, degloving, or fatality. ISO 12100:2011 Cl. 5.5.2.2 and AS/NZS 4024.1303 Cl. 5.4.2 require use of the worst credible severity — DPH must be revised upward significantly.",
+        "No risk reduction measures are in place. With LO = 8.0 (frequent / continuous exposure without guard) and multiple severe hazard types, the unmitigated HRN will remain in the 'High' to 'Very High' band even after DPH correction. Immediate interim controls should be considered per AS/NZS 4024.1100:2019 Cl. 4 hierarchy of control.",
+        "With no visible guard indicated and no safeguarding measures recorded, LO = 8.0 is noted as the minimum acceptable value consistent with the scene observation per the assessment rules — this value is not challenged but must not be reduced without formal documented engineering controls.",
+        "Friction and abrasion and Impact hazards are identified but their DPH contribution has not been separately assessed. If these hazards present to different body parts or under different exposure conditions, separate HRN assessments per hazard type are required per ISO 12100:2011 Cl. 5.3 and AS/NZS 4024.1303 Cl. 5.3.1.",
+        "Current HRN = 64.0 is recorded using DPH = 1.0. Corrected HRN with DPH = 6.0 yields HRN = 384.0 (Very High band, >50–100 corrected to >100–500 Very High). With DPH = 15.0 (fatality), corrected HRN = 960.0 (Extreme band, >500–1000). Both outcomes demand urgent engineering safeguarding action before operation continues."
+      ],
+      "ai_recommendations": [
+        "Eliminate manual hand-feeding by installing an automated feeding system (e.g. gravity chute, conveyor, pusher mechanism, or robotic arm) to remove the operator's hands from the press danger zone during normal production cycles. This directly eliminates the crushing, drawing-in, shearing and impact hazards to the upper limbs at point-of-operation.",
+        "Install a fixed guard with interlocked access panels (Category 3 / PLd per ISO 13849-1:2015, Table 10) enclosing all moving press components — ram, flywheel, drive, ejection side. Fixed guard openings to comply with ISO 13857:2008 Table 4 (sr ≥ 850 mm for slots >20 mm; openings ≤4 mm for fingertip safety distance). This single measure addresses crushing, shearing, drawing-in, entanglement, friction/abrasion and impact hazards from all moving transmission and working parts simultaneously. Guard to comply with ISO 14120 for material and fastener requirements (tool-removable only, cl 5.3).",
+        "Install an active optoelectronic protective device (AOPD — light curtain or safety laser scanner) at the east exit feed aperture, complying with IEC 61496-1 and positioned at the minimum safety distance calculated per ISO 13855:2010 (Ds = K × (ts + tc) + C). The AOPD shall be integrated into a safety-rated control system achieving Category 3 / PLd minimum per ISO 13849-1:2015 (S2, F2, P2 → PLr = d per Annex A risk graph). On beam interruption, the control system shall issue a stop command with priority over run commands (ISO 13849-1:2015 cl 5.2.1). Manual reset (outside danger zone, good visibility) required before restart per ISO 13849-1:2015 cl 5.2.2. This is the primary safeguard where the feed aperture cannot be fully closed by fixed guarding.",
+        "Install a fixed thermal guard/barrier (compliant with ISO 13732-1 for surface temperature limits) and/or insulating enclosure around all hot platens, heated tooling and any surfaces capable of causing burns or scalds. Where contact temperatures exceed ISO 13732-1 thresholds for the relevant contact time, guarding shall prevent inadvertent contact. Where full enclosure is impractical, apply high-temperature-rated insulating cladding to reduce accessible surface temperature to below threshold. This specifically addresses the burn/scald hazard identified at the east exit in combination with the press guarding in Measure 2.",
+        "Provide clear, durable safety signs at the east exit complying with ISO 11684-1 and AS 1319 indicating: (a) mandatory AOPD active zone — do not bypass; (b) hot surfaces — burn hazard; (c) do not reach into press during operation; (d) mandatory PPE (heat-resistant gloves, safety footwear, close-fitting clothing). Signs are a residual-risk communication measure only and shall not substitute for Measures 1–4.",
+        "Implement documented operator training and competency assessment covering: (a) press safe operating procedure (SOP) including use of automated feed system; (b) AOPD test procedure at shift start (mandatory functional test per ISO 13849-1:2015 cl 4.7 verification); (c) lockout/tagout (LOTO) procedure for jam clearance and maintenance per AS/NZS 4024.1601 and ISO 14118; (d) mandatory PPE: heat-resistant (EN 407) gloves for thermal tasks, steel-capped footwear, close-fitting clothing; (e) prohibition on bypassing or defeating the AOPD or guards. Training records to be retained and refreshed annually or after incident."
+      ],
+      "ai_logs": []
+    },
+    {
+      "id": "H02",
+      "location": "Infeed to Shrink Wrapper",
+      "mode": "Operation",
+      "task": "Operator feeding product into shrink wrapper infeed conveyor",
+      "hazard_types": [
+        "Crushing",
+        "Drawing-in",
+        "Entanglement",
+        "Burn/Scald",
+        "Electrical shock",
+        "Electrocution",
+        "Ejection of parts"
+      ],
+      "photos": [
+        {
+          "filepath": "file:///data/user/0/host.exp.exponent/cache/ImagePicker/30b7c855-7d8d-49dc-afb2-cfad56335078.jpeg",
+          "timestamp": "2026-05-18T05:11:34.869000Z",
+          "site_label": "Infeed to Shrink Wrapper",
+          "annotations": []
+        }
+      ],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 1.0,
+        "FE": 4.0,
+        "DPH": 8.0,
+        "NP": 2.0
+      },
+      "hrn_score_before": 64.0,
+      "risk_band_before": "High",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "ai_validation_flags": [],
+      "ai_recommendations": [],
+      "ai_logs": []
+    }
+  ],
+  "created_at": "2026-05-18T03:17:38.638000Z",
+  "updated_at": "2026-05-19T05:27:59.227984",
+  "status": "draft"
+}

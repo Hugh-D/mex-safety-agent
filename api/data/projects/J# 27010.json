@@ -1,0 +1,129 @@
+{
+  "project_brief": {
+    "project_number": "J# 27010",
+    "client": "ResourceCo",
+    "site": "Hemmant Site",
+    "machine_or_line": "Full Factory",
+    "assessment_date": "2026-05-20",
+    "team": [],
+    "scope_description": "",
+    "standards_applicable": [],
+    "lifecycle_exclusions": []
+  },
+  "hazards": [
+    {
+      "id": "H01",
+      "location": "Compactor",
+      "mode": "Operation",
+      "task": "Operating Compactor",
+      "hazard_types": [
+        "Noise",
+        "Contact with hazardous substances"
+      ],
+      "photos": [],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 2.0,
+        "FE": 2.5,
+        "DPH": 2.0,
+        "NP": 1.0
+      },
+      "hrn_score_before": 10.0,
+      "risk_band_before": "Low",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "ai_validation_flags": [],
+      "ai_recommendations": [],
+      "ai_logs": []
+    },
+    {
+      "id": "H02",
+      "location": "Steps to nxt level",
+      "mode": "Operation",
+      "task": "",
+      "hazard_types": [
+        "Tripping",
+        "Falling",
+        "Impact",
+        "Dust/fume inhalation",
+        "Drawing-in",
+        "Slipping"
+      ],
+      "photos": [],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 2.0,
+        "FE": 2.5,
+        "DPH": 2.0,
+        "NP": 2.0
+      },
+      "hrn_score_before": 20.0,
+      "risk_band_before": "Significant",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "ai_validation_flags": [],
+      "ai_recommendations": [],
+      "ai_logs": []
+    },
+    {
+      "id": "H03",
+      "location": "Strech Wrapper",
+      "mode": "Operation",
+      "task": "",
+      "hazard_types": [
+        "Crushing",
+        "Drawing-in",
+        "Cutting",
+        "Dust/fume inhalation",
+        "Impact",
+        "Entanglement"
+      ],
+      "photos": [],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 2.0,
+        "FE": 2.5,
+        "DPH": 2.0,
+        "NP": 2.0
+      },
+      "hrn_score_before": 20.0,
+      "risk_band_before": "Significant",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "ai_validation_flags": [],
+      "ai_recommendations": [],
+      "ai_logs": []
+    },
+    {
+      "id": "H04",
+      "location": "Line #1 Conveyor Tail-end",
+      "mode": "Operation",
+      "task": "",
+      "hazard_types": [
+        "Drawing-in",
+        "Dust/fume inhalation",
+        "Crushing",
+        "Falling",
+        "Entanglement"
+      ],
+      "photos": [],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 5.0,
+        "FE": 2.5,
+        "DPH": 2.0,
+        "NP": 1.0
+      },
+      "hrn_score_before": 25.0,
+      "risk_band_before": "Significant",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "ai_validation_flags": [],
+      "ai_recommendations": [],
+      "ai_logs": []
+    }
+  ],
+  "created_at": "2026-05-20T04:36:41.183000Z",
+  "updated_at": "2026-05-20T04:44:45.384520",
+  "status": "draft"
+}

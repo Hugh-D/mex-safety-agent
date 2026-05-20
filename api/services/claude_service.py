@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -42,6 +43,8 @@ def _load_docs(*keys: str) -> str:
             path = _DOCS_DIR / _DOC_FILES[key]
             if path.exists():
                 _DOC_CACHE[key] = path.read_text(encoding="utf-8")
+            else:
+                logging.warning("Standards doc missing — AI context degraded: %s", path)
         content = _DOC_CACHE.get(key)
         if content:
             parts.append(content)
@@ -196,8 +199,8 @@ NP: 1=1-2 persons, 2=3-7 persons, 4=8-15 persons, 8=16-50 persons, 12=50+ person
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=1024,
-        system=_system_blocks(_RISK_AGENT_SYSTEM, "1302", "1303"),
+        max_tokens=2048,
+        system=_system_blocks(_RISK_AGENT_SYSTEM),
         messages=[
             {
                 "role": "user",
@@ -268,7 +271,7 @@ If all parameters are well-supported, return an empty challenged_parameters arra
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=1024,
+        max_tokens=2048,
         system=_system_blocks(_RISK_AGENT_SYSTEM, "1302", "1303", "1501", "1801", "1803"),
         messages=[{"role": "user", "content": prompt}],
     )
@@ -304,8 +307,8 @@ Hazard types: {", ".join(hazard_types)}
 Current HRN score: {hrn_score} ({risk_band})
 Existing measures: {", ".join(existing_measures) if existing_measures else "none"}
 
-Recommend risk reduction measures following ISO 12100 hierarchy \
-(eliminate > guard > safeguard > warning > training/PPE).
+Recommend up to 6 risk reduction measures following ISO 12100 hierarchy \
+(eliminate > guard > safeguard > warning > training/PPE). Group related hazard types under one measure where possible.
 Target: bring HRN to ≤ 5.
 
 Return JSON:
@@ -325,7 +328,7 @@ Return JSON:
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=768,
+        max_tokens=4096,
         system=_system_blocks(_RISK_AGENT_SYSTEM, "1201", "1501", "1503", "1703", "1801", "1803"),
         messages=[{"role": "user", "content": prompt}],
     )
