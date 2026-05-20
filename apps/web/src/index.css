@@ -1,3 +1,19 @@
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+.btn-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(0,37,89,0.2);
+  border-top-color: #002559;
+  border-radius: 50%;
+  animation: btn-spin 0.65s linear infinite;
+  vertical-align: middle;
+  margin-right: 7px;
+  flex-shrink: 0;
+}
+
 :root {
   color-scheme: light;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -230,6 +246,9 @@ nav button.active {
   padding: 12px 28px;
   border: none;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .primary-btn:hover {
@@ -441,6 +460,9 @@ nav button.active {
   font-weight: 600;
   cursor: pointer;
   color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .print-btn:hover:not(:disabled) {
@@ -633,6 +655,9 @@ nav button.active {
 .pv-hazard-card { background: white; border: 1px solid #d8e3ef; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
 .pv-hazard-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .pv-hazard-id { font-weight: 700; font-size: 0.95rem; color: #002559; }
+.pv-edit-btn { margin-left: auto; font-size: 0.78rem; padding: 3px 10px; border: 1px solid #b0c4d8; border-radius: 6px; background: white; color: #002559; cursor: pointer; font-weight: 600; }
+.pv-edit-btn:hover:not(:disabled) { background: #e8f0fa; }
+.pv-edit-btn:disabled { opacity: 0.4; cursor: default; }
 .pv-risk-badge { font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; }
 .pv-hazard-detail { font-size: 0.9rem; margin-bottom: 4px; }
 .pv-hazard-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -644,7 +669,7 @@ nav button.active {
 .pv-label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; color: #102a43; gap: 6px; }
 .pv-photo-row { display: flex; gap: 10px; align-items: center; }
 .pv-photo-preview { display: block; max-width: 260px; max-height: 180px; border-radius: 8px; border: 1px solid #d8e3ef; object-fit: cover; margin-top: 10px; }
-.pv-outline-btn { background: white; color: #002559; border: 1.5px solid #002559; padding: 10px 16px; border-radius: 8px; }
+.pv-outline-btn { background: white; color: #002559; border: 1.5px solid #002559; padding: 10px 16px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .pv-outline-btn:hover { background: #f0f4ff; }
 .pv-outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .pv-ai-box { background: #f0f7ff; border: 1px solid #b8d4f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9rem; line-height: 1.5; }
