@@ -1,6 +1,6 @@
 import { useRef, useState } from "react"
 import type { DrawingAnalysisResponse, DxfParseResponse } from "../services/api"
-import { analyseDrawing, parseDxf } from "../services/api"
+import { analyseDrawing, parseDxf, downloadComplianceReport } from "../services/api"
 
 const PL_OPTIONS = ["PLa", "PLb", "PLc", "PLd", "PLe"]
 const CAT_OPTIONS = ["Cat B", "Cat 1", "Cat 2", "Cat 3", "Cat 4"]
@@ -54,6 +54,7 @@ export default function DesignReview() {
   const [dxfExpanded, setDxfExpanded] = useState(false)
   const [result, setResult] = useState<DrawingAnalysisResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null)
 
   function handleFileDrop(e: React.DragEvent) {
     e.preventDefault()
@@ -89,8 +90,16 @@ export default function DesignReview() {
     }
   }
 
-  function handlePrint() {
-    window.print()
+  async function handleDownload(format: "pdf" | "docx") {
+    if (!result) return
+    setDownloading(format)
+    try {
+      await downloadComplianceReport(drawingTitle.trim(), targetPl, targetCategory, result, format)
+    } catch (e) {
+      setError(`Export failed: ${(e as Error).message}`)
+    } finally {
+      setDownloading(null)
+    }
   }
 
   const verdict = result ? (VERDICT_STYLE[result.overallVerdict] ?? VERDICT_STYLE.non_compliant) : null
@@ -223,24 +232,42 @@ export default function DesignReview() {
       {/* Results */}
       {result && verdict && (
         <>
-          {/* Print header — only visible when printing */}
-          <div className="print-only print-header">
-            <div className="print-logo">MEX Engineering Group</div>
-            <div className="print-meta">
-              <strong>Drawing Review — {drawingTitle}</strong><br />
-              Target: {targetPl} {targetCategory} &nbsp;|&nbsp; {new Date().toLocaleDateString("en-AU")}
-            </div>
-          </div>
-
           {/* Verdict + download bar */}
           <div className="verdict-banner" style={{ background: verdict.bg, borderColor: verdict.color }}>
             <span className="verdict-label" style={{ color: verdict.color }}>{verdict.label}</span>
             <span className="verdict-gap">Gap to {targetPl} {targetCategory}: <strong>{result.gapToTarget}</strong></span>
-            <button className="print-btn no-print" onClick={handlePrint}>⬇ Download / Print</button>
+            <div className="download-btn-group no-print">
+              <button
+                className="print-btn"
+                onClick={() => handleDownload("pdf")}
+                disabled={downloading !== null}
+              >
+                {downloading === "pdf" ? "Generating…" : "⬇ PDF"}
+              </button>
+              <button
+                className="print-btn print-btn-secondary"
+                onClick={() => handleDownload("docx")}
+                disabled={downloading !== null}
+              >
+                {downloading === "docx" ? "Generating…" : "⬇ Word"}
+              </button>
+            </div>
           </div>
           <div className="gap-summary">
             <RichText text={result.gapSummary} />
           </div>
+
+          {/* Redline SLD — shown when DXF topology produced a diagram */}
+          {result.svgDiagram && (
+            <section className="result-section sld-section">
+              <h3>Redline Safety Circuit Diagram</h3>
+              <p className="sld-hint">Red annotations correspond to numbered non-conformances below.</p>
+              <div
+                className="sld-container"
+                dangerouslySetInnerHTML={{ __html: result.svgDiagram }}
+              />
+            </section>
+          )}
 
           {/* Architecture */}
           <section className="result-section">

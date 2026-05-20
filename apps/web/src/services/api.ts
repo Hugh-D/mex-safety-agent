@@ -59,8 +59,105 @@ export async function createProject(project: AssessmentProject): Promise<Assessm
   return requestJSON<AssessmentProject>("/assessment/project", project)
 }
 
+export async function saveProject(project: AssessmentProject): Promise<AssessmentProject> {
+  return requestJSON<AssessmentProject>("/assessment/project", project)
+}
+
+// ---------------------------------------------------------------------------
+// AI — photo analysis
+// ---------------------------------------------------------------------------
+export interface PhotoAnalysisResult {
+  observations: string
+  hazardTypes: string[]
+  suggestedMode: string
+  suggestedTask: string
+  hrnSuggestions: {
+    LO: { value: number; justification: string }
+    FE: { value: number; justification: string }
+    DPH: { value: number; justification: string }
+    NP: { value: number; justification: string }
+  }
+  flags: string[]
+}
+
+export async function analysePhoto(file: File, siteLabel: string): Promise<PhotoAnalysisResult> {
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("site_label", siteLabel)
+
+  const startResp = await fetch(`${API_BASE}/ai/photo/start`, { method: "POST", body: formData })
+  if (!startResp.ok) throw new Error(`Photo upload failed: ${startResp.statusText}`)
+  const { job_id } = await startResp.json()
+
+  const deadline = Date.now() + 120_000
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 3000))
+    const pollResp = await fetch(`${API_BASE}/ai/photo/${job_id}`)
+    if (!pollResp.ok) throw new Error(`Poll failed: ${pollResp.statusText}`)
+    const job = await pollResp.json()
+    if (job.status === "complete") {
+      const raw = job.result
+      return {
+        observations: raw.observations,
+        hazardTypes: raw.hazard_types,
+        suggestedMode: raw.suggested_mode,
+        suggestedTask: raw.suggested_task,
+        hrnSuggestions: {
+          LO: raw.hrn_suggestions.LO,
+          FE: raw.hrn_suggestions.FE,
+          DPH: raw.hrn_suggestions.DPH,
+          NP: raw.hrn_suggestions.NP,
+        },
+        flags: raw.flags,
+      }
+    }
+    if (job.status === "error") throw new Error(job.detail ?? "AI analysis failed")
+  }
+  throw new Error("Analysis timed out — please try again")
+}
+
+// ---------------------------------------------------------------------------
+// AI — HRN validation
+// ---------------------------------------------------------------------------
+export interface ChallengedParameter {
+  parameter: string
+  enteredValue: number
+  recommendedValue: number
+  reason: string
+}
+
+export interface HRNValidationResult {
+  valid: boolean
+  challengedParameters: ChallengedParameter[]
+  flags: string[]
+  overallComment: string
+}
+
+export async function validateHrnAI(
+  hrnParams: HRNParameters,
+  hazardTypes: string[],
+  observations: string,
+): Promise<HRNValidationResult> {
+  const raw = await requestJSON<any>("/ai/hrn/validate", {
+    hrn_params: hrnParams,
+    hazard_types: hazardTypes,
+    observations,
+  })
+  return {
+    valid: raw.valid,
+    challengedParameters: (raw.challenged_parameters ?? []).map((p: any) => ({
+      parameter: p.parameter,
+      enteredValue: p.entered_value,
+      recommendedValue: p.recommended_value,
+      reason: p.reason,
+    })),
+    flags: raw.flags ?? [],
+    overallComment: raw.overall_comment,
+  }
+}
+
 export async function getProject(projectNumber: string): Promise<AssessmentProject> {
-  return getJSON<AssessmentProject>(`/assessment/project/${projectNumber}`)
+  return getJSON<AssessmentProject>(`/assessment/project/${encodeURIComponent(projectNumber)}`)
 }
 
 export async function listProjects(): Promise<ProjectListResponse> {
@@ -68,7 +165,7 @@ export async function listProjects(): Promise<ProjectListResponse> {
 }
 
 export async function generateProjectReport(projectNumber: string): Promise<Blob> {
-  const response = await fetch(`${API_BASE}/report/project/${projectNumber}`)
+  const response = await fetch(`${API_BASE}/report/project/${encodeURIComponent(projectNumber)}`)
   if (!response.ok) {
     throw new Error(`Failed to generate report: ${response.statusText}`)
   }
@@ -78,6 +175,26 @@ export async function generateProjectReport(projectNumber: string): Promise<Blob
 // ---------------------------------------------------------------------------
 // Compliance / Design Review
 // ---------------------------------------------------------------------------
+export interface TopologyComponent {
+  id: string
+  channel: string | null
+  seriesGroup: string | null
+}
+
+export interface TopologyConnection {
+  fromId: string
+  toId: string
+  fromPort: string | null
+  toPort: string | null
+  wireType: string
+  label: string | null
+}
+
+export interface TopologyResult {
+  components: TopologyComponent[]
+  connections: TopologyConnection[]
+}
+
 export interface DrawingAnalysisResponse {
   drawingType: string
   componentsIdentified: { component: string; type: string; location: string; safetyRelevant: boolean }[]
@@ -94,6 +211,8 @@ export interface DrawingAnalysisResponse {
   gapToTarget: string
   gapSummary: string
   overallVerdict: string
+  topology: TopologyResult | null
+  svgDiagram: string | null
 }
 
 export interface DesignReviewResponse {
@@ -178,4 +297,35 @@ export async function parseDxf(file: File): Promise<DxfParseResponse> {
   const response = await fetch(`${API_BASE}/compliance/dxf`, { method: "POST", body: formData })
   if (!response.ok) await throwWithDetail(response, "DXF parse failed")
   return response.json()
+}
+
+export async function downloadComplianceReport(
+  drawingTitle: string,
+  targetPl: string,
+  targetCategory: string,
+  analysis: DrawingAnalysisResponse,
+  format: "pdf" | "docx",
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/compliance/report`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      drawingTitle,
+      targetPl,
+      targetCategory,
+      format,
+      analysis,
+      svgDiagram: analysis.svgDiagram ?? null,
+    }),
+  })
+  if (!response.ok) await throwWithDetail(response, "Report generation failed")
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  const safeName = drawingTitle.replace(/[^a-zA-Z0-9_\- ]/g, "").trim().replace(/ /g, "_").slice(0, 40)
+  a.href = url
+  a.download = `${safeName}_Compliance_Review.${format}`
+  a.click()
+  URL.revokeObjectURL(url)
 }

@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from "react"
-import { determinePLR, scoreHRN, listProjects, createProject, generateProjectReport } from "./services/api"
+import { determinePLR, scoreHRN, listProjects, createProject, getProject, generateProjectReport } from "./services/api"
 import type { HRNParameters, PLRRequest, HRNScoreResponse, PLRResultResponse, AssessmentProject, ProjectListResponse } from "@shared/types/assessment"
 import DesignReview from "./components/DesignReview"
 import DocumentReview from "./components/DocumentReview"
+import ProjectView from "./components/ProjectView"
 
 const HRN_PARAMS = {
   LO: [
@@ -186,6 +187,7 @@ function App() {
     machineOrLine: "",
   })
   const [error, setError] = useState<string | null>(null)
+  const [selectedProject, setSelectedProject] = useState<AssessmentProject | null>(null)
 
   useEffect(() => {
     if (activeTab === "projects") {
@@ -197,6 +199,15 @@ function App() {
     try {
       const result = await listProjects()
       setProjects(result.projectNumbers)
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  const openProject = async (projectNumber: string) => {
+    try {
+      const loaded = await getProject(projectNumber)
+      setSelectedProject(loaded)
     } catch (err) {
       setError((err as Error).message)
     }
@@ -221,9 +232,10 @@ function App() {
         },
         hazards: [],
       }
-      await createProject(project)
+      const created = await createProject(project)
       setNewProject({ projectNumber: "", client: "", site: "", machineOrLine: "" })
       loadProjects()
+      setSelectedProject(created)
     } catch (err) {
       setError((err as Error).message)
     }
@@ -236,8 +248,10 @@ function App() {
       const a = document.createElement('a')
       a.href = url
       a.download = `report-${projectNumber}.pdf`
+      document.body.appendChild(a)
       a.click()
-      URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 100)
     } catch (err) {
       setError((err as Error).message)
     }
@@ -405,7 +419,15 @@ function App() {
         </>
       )}
 
-      {activeTab === "projects" && (
+      {activeTab === "projects" && selectedProject && (
+        <ProjectView
+          project={selectedProject}
+          onBack={() => { setSelectedProject(null); loadProjects() }}
+          onProjectUpdate={(p) => setSelectedProject(p)}
+        />
+      )}
+
+      {activeTab === "projects" && !selectedProject && (
         <>
           <section>
             <h2>Create New Project</h2>
@@ -454,7 +476,9 @@ function App() {
               <div className="project-list">
                 {projects.map((projectNumber) => (
                   <div key={projectNumber} className="project-item">
-                    <span>{projectNumber}</span>
+                    <button className="project-number-btn" onClick={() => openProject(projectNumber)}>
+                      {projectNumber}
+                    </button>
                     <button onClick={() => downloadReport(projectNumber)}>Download Report</button>
                   </div>
                 ))}
