@@ -268,6 +268,16 @@ export default function DesignReview() {
               />
             </section>
           )}
+          {dxfFile && !result.topology && (
+            <div className="analysis-notice">
+              Topology extraction did not produce a result — the DXF was parsed but circuit topology could not be traced from the image. The compliance analysis ran without circuit topology data.
+            </div>
+          )}
+          {result.topology && !result.svgDiagram && (
+            <div className="analysis-notice">
+              Redline diagram could not be rendered — topology data was extracted but diagram generation failed. The compliance analysis is unaffected.
+            </div>
+          )}
 
           {/* Architecture */}
           <section className="result-section">

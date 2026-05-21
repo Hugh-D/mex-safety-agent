@@ -533,6 +533,17 @@ nav button.active {
   height: auto;
 }
 
+/* ── Analysis notices (non-blocking warnings) ── */
+.analysis-notice {
+  background: #fff8e1;
+  border: 1px solid #f9a825;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: #5d4037;
+  margin-bottom: 16px;
+}
+
 /* ── DXF attachment ── */
 .dxf-attach-row {
   display: flex;

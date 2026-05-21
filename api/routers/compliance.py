@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 
 from services import compliance_service, dxf_parser
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -152,8 +154,8 @@ async def analyse_drawing(
                 }
                 for c in parsed_dxf.safety_components
             ]
-        except Exception:
-            pass  # DXF failure is non-fatal
+        except Exception as exc:
+            logger.warning("DXF parse failed in drawing analysis — continuing without DXF context: %s", exc, exc_info=True)
 
     # Run compliance analysis + topology in parallel when DXF components are available
     topology_raw: Optional[dict] = None
@@ -184,8 +186,8 @@ async def analyse_drawing(
             from services import diagram_service
             non_conformances = raw.get("non_conformances", [])
             svg_diagram = diagram_service.build_diagram_svg(parsed_dxf, topology_raw, non_conformances)
-        except Exception:
-            pass  # diagram failure is non-fatal
+        except Exception as exc:
+            logger.warning("SVG diagram generation failed: %s", exc, exc_info=True)
 
     # Map topology raw dict to response model
     topology_result: Optional[TopologyResult] = None
@@ -212,8 +214,8 @@ async def analyse_drawing(
                     for c in topology_raw.get("connections", [])
                 ],
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Topology model mapping failed: %s", exc, exc_info=True)
 
     def _map_component(c: dict) -> ComponentIdentified:
         return ComponentIdentified(
