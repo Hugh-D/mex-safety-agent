@@ -157,21 +157,28 @@ async def analyse_drawing(
         except Exception as exc:
             logger.warning("DXF parse failed in drawing analysis — continuing without DXF context: %s", exc, exc_info=True)
 
-    # Always run compliance analysis + topology in parallel
+    # Run analysis first so its identified components anchor the topology trace
     topology_raw: Optional[dict] = None
     try:
-        raw, topology_raw = await asyncio.gather(
-            asyncio.to_thread(
-                compliance_service.analyse_drawing,
-                image_bytes, drawing_title, target_pl, target_category, context, dxf_context,
-            ),
-            asyncio.to_thread(
-                compliance_service.extract_topology,
-                image_bytes, dxf_safety_components,
-            ),
+        raw = await asyncio.to_thread(
+            compliance_service.analyse_drawing,
+            image_bytes, drawing_title, target_pl, target_category, context, dxf_context,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
+
+    # Build ground-truth component list: DXF takes priority; fall back to analysis components
+    ground_truth = dxf_safety_components or compliance_service.components_from_analysis(
+        raw.get("components_identified", [])
+    )
+
+    try:
+        topology_raw = await asyncio.to_thread(
+            compliance_service.extract_topology,
+            image_bytes, ground_truth,
+        )
+    except Exception as exc:
+        logger.warning("Topology extraction failed: %s", exc, exc_info=True)
 
     # Generate SLD if topology + DXF both available
     svg_diagram: Optional[str] = None

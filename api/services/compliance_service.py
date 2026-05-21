@@ -159,6 +159,46 @@ Return JSON with this exact structure:
     return _parse_json(response.content[0].text)
 
 
+_TYPE_TO_COMPLIANCE: dict[str, str] = {
+    "e-stop":           "e_stop",
+    "estop":            "e_stop",
+    "emergency stop":   "e_stop",
+    "interlock":        "interlock",
+    "gate":             "interlock",
+    "guard":            "interlock",
+    "door":             "interlock",
+    "light curtain":    "light_curtain",
+    "light guard":      "light_curtain",
+    "scanner":          "scanner",
+    "area scanner":     "scanner",
+    "laser scanner":    "scanner",
+    "safety relay":     "safety_relay",
+    "safety controller":"safety_relay",
+    "safety plc":       "safety_plc",
+    "plc":              "safety_plc",
+    "contactor":        "contactor",
+    "drive":            "drive",
+    "vfd":              "drive",
+    "terminal":         "terminal",
+}
+
+
+def components_from_analysis(components_identified: list[dict]) -> list[dict]:
+    """Convert analyse_drawing componentsIdentified to the format expected by extract_topology."""
+    result = []
+    for c in components_identified:
+        tag = c.get("component", "").strip()
+        if not tag:
+            continue
+        type_str = c.get("type", "").lower().strip()
+        compliance_type = next(
+            (v for k, v in _TYPE_TO_COMPLIANCE.items() if k in type_str),
+            "unknown",
+        )
+        result.append({"id": tag, "compliance_type": compliance_type})
+    return result
+
+
 def extract_topology(
     image_bytes: bytes,
     dxf_components: list[dict],
