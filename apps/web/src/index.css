@@ -2,17 +2,43 @@
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+@keyframes claude-arm-a {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+@keyframes claude-arm-b {
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 1; }
+}
 .btn-spinner {
+  position: relative;
   display: inline-block;
   width: 14px;
   height: 14px;
-  /* cross shape: 4px-wide arms, 2px rounded tips, centred in 14×14 */
-  clip-path: path('M 5,5 L 5,2 A 2,2 0 0,1 9,2 L 9,5 L 12,5 A 2,2 0 0,1 12,9 L 9,9 L 9,12 A 2,2 0 0,1 5,12 L 5,9 L 2,9 A 2,2 0 0,1 2,5 Z');
-  background: conic-gradient(from 0deg, #002559 0% 75%, rgba(0,37,89,0.18) 75% 100%);
-  animation: claude-spin 1.4s linear infinite;
   vertical-align: middle;
   margin-right: 7px;
   flex-shrink: 0;
+  animation: claude-spin 1.5s linear infinite;
+}
+.btn-spinner::before,
+.btn-spinner::after {
+  content: '';
+  position: absolute;
+  background: #002559;
+  border-radius: 2px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.btn-spinner::before {
+  width: 4px;
+  height: 14px;
+  animation: claude-arm-a 0.75s ease-in-out infinite;
+}
+.btn-spinner::after {
+  width: 14px;
+  height: 4px;
+  animation: claude-arm-b 0.75s ease-in-out infinite;
 }
 
 :root {

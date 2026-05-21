@@ -18,7 +18,8 @@
       "task": "Operating Compactor",
       "hazard_types": [
         "Noise",
-        "Contact with hazardous substances"
+        "Contact with hazardous substances",
+        "Drawing-in"
       ],
       "photos": [],
       "voice_notes": [],
@@ -32,7 +33,15 @@
       "risk_band_before": "Low",
       "risk_reduction_measures": [],
       "standards_references": [],
-      "ai_validation_flags": [],
+      "ai_validation_flags": [
+        "DPH = 2.0 is inappropriate for both noise (irreversible NIHL) and hazardous substance exposure (potential chronic/carcinogenic outcomes) — AS/NZS 4024.1302 Cl. 4.2 and ISO 12100:2011 Cl. 5.5.2.2 require worst credible severity; DPH should be at least 6.0 for irreversible health impairment.",
+        "NP = 1.0 assumes sole-person exposure; compactor operation environments routinely place multiple persons within noise and emission zones — NP must reflect realistic site population per ISO 12100:2011 Cl. 5.5.2.",
+        "No risk reduction measures have been identified. AS/NZS 4024.1302 Cl. 6 mandates application of the hierarchy of controls (elimination → engineering controls → administrative controls → PPE) for hazardous substance emissions. AS/NZS 4024.1100:2019 requires engineering noise controls before reliance on hearing protection. The assessment cannot be closed without at least a documented control plan.",
+        "With corrected parameters (LO=2.0, FE=2.5, DPH=6.0, NP=2.0), the HRN = 60.0, escalating the risk band from 'Low (action required)' to 'High' — a material difference in required response urgency and control measures.",
+        "LO = 2.0 and FE = 2.5 are not challenged given daily operational exposure to a compactor is consistent with 'possible' likelihood and frequent/daily exposure frequency; however, if no engineering controls or enclosures are present for the substance/noise source, LO may need upward review once site conditions are confirmed.",
+        "DPH: entered 2 → recommended 6. DPH = 2.0 implies 'Serious' but recoverable harm. For occupational noise exposure during compactor operation, AS/NZS 4024.1100:2019 and ISO 12100:2011 Cl. 5.5.2.2 require the assessor to consider the worst credible outcome for the hazard type. Chronic noise-induced hearing loss (NIHL) is permanent and irreversible — consistent with DPH = 6.0 ('Permanent partial disability / irreversible health impairment'). For hazardous substances (e.g. diesel exhaust particulates, dust, hydraulic fluid aerosols from a compactor), the endpoint may include sensitisation, carcinogenicity, or chronic respiratory disease, also warranting DPH ≥ 6.0 per AS/NZS 4024.1302 Cl. 4.2. Using DPH = 2.0 materially understates the severity of both identified hazard types.",
+        "NP: entered 1 → recommended 2. NP = 1.0 is only appropriate where a single isolated person is exposed. Compactor operation in waste management, construction, or industrial settings typically exposes the operator and nearby workers (spotters, pedestrians, other plant operators) to noise above 85 dB(A) action levels per AS/NZS 4024.1100:2019, and to airborne hazardous substance emissions per AS/NZS 4024.1302 Cl. 5.1. Unless site documentation confirms a strictly single-person exclusion zone is enforced and verified, NP = 2.0 (2–3 persons at risk) is the minimum defensible value. ISO 12100:2011 Cl. 5.5.2 requires consideration of all persons who can be exposed."
+      ],
       "ai_recommendations": [],
       "ai_logs": []
     },
@@ -47,21 +56,31 @@
         "Impact",
         "Dust/fume inhalation",
         "Drawing-in",
-        "Slipping"
+        "Slipping",
+        "Entanglement"
       ],
       "photos": [],
       "voice_notes": [],
       "hrn_before": {
-        "LO": 2.0,
+        "LO": 5.0,
         "FE": 2.5,
-        "DPH": 2.0,
+        "DPH": 4.0,
         "NP": 2.0
       },
-      "hrn_score_before": 20.0,
-      "risk_band_before": "Significant",
+      "hrn_score_before": 100.0,
+      "risk_band_before": "High",
       "risk_reduction_measures": [],
       "standards_references": [],
-      "ai_validation_flags": [],
+      "ai_validation_flags": [
+        "No risk reduction measures are in place — LO must not be reduced below values consistent with an unguarded, uncontrolled condition; LO = 0.033 is not permissible without formally documented and verified administrative controls.",
+        "Drawing-in and entanglement hazards are present with no visible guard — per CMSE review rules, LO must be ≥ 8 unless a guard or interlock is confirmed in place; entered LO = 2.0 is therefore highly optimistic.",
+        "Daily or routine operational exposure is the reasonable assumption for slip, trip, dust/fume, and mechanical contact hazards at a workplace machine — FE = 1.0 (annual) is unsupported without documented evidence of infrequent access.",
+        "Multiple simultaneous hazard types (mechanical + inhalation + slip/trip) elevate the composite risk profile; each hazard category should be assessed separately per ISO 12100:2011 Clause 5.5.1 to ensure the worst-case scenario drives DPH selection.",
+        "Recalculated HRN with recommended parameters (LO=6.0, FE=2.5, DPH=4.0, NP=2.0) yields HRN = 120, placing the risk in the 'Very High' band (>100–500), which materially changes the required urgency and scope of risk reduction action compared to the entered score of 8.0 ('Low').",
+        "FE: entered 1 → recommended 2.5. FE = 1.0 corresponds to 'annual' exposure. The hazard types identified — tripping, slipping, drawing-in, entanglement, dust/fume inhalation — are characteristic of routine operational tasks at a machine or walkway. Without documented evidence that personnel exposure occurs only once per year or less, FE must reflect realistic task frequency. Daily or shift-based exposure to these hazard categories requires FE ≥ 2.5 (hourly to daily) per the HRN methodology. ISO 12100:2011 Clause 5.5.2 and AS/NZS 4024.1303 Clause 5.4.3 both require exposure frequency to reflect actual interaction patterns with the hazard zone, not a best-case assumption.",
+        "LO: entered 2 → recommended 6. LO = 2.0 ('possible but unusual') is not supportable where no risk reduction measures are in place. With no guards, no engineered controls, and multiple hazard types including drawing-in and entanglement — which are sudden and typically unforeseeable to the exposed person — the likelihood of occurrence cannot be rated as low. Per the HRN framework, LO = 6 ('fairly likely') is the minimum defensible value in an unguarded condition with simultaneous mechanical, slip/trip, and inhalation hazards present. AS/NZS 4024.1303 Clause 5.4.3.1 and ISO 12100:2011 Clause 5.5.2.3.2 require that probability of a hazardous event be assessed against the actual condition of the machine, not a hypothetical safeguarded state. A value of LO = 0.033 would require formally documented and verified administrative controls per the CMSE review rules, which are absent here.",
+        "DPH: entered 2 → recommended 4. DPH = 2.0 ('minor injuries, minor reversible') is inconsistent with the hazard set identified. Drawing-in and entanglement hazards carry the potential for degloving, fracture, amputation, or asphyxiation (dust/fume inhalation in enclosed spaces). ISO 12100:2011 Clause 5.5.2.2 requires severity to be estimated at the worst credible harm for the hazard zone — not the most probable. AS/NZS 4024.1303 Clause 5.4.2 explicitly states the most severe realistic harm must be used. For entanglement and drawing-in at unguarded machinery, DPH = 4.0 ('permanent partial disability') is the minimum defensible value; DPH = 6.0 or higher is warranted if whole-limb or fatality outcomes are foreseeable."
+      ],
       "ai_recommendations": [],
       "ai_logs": []
     },
@@ -76,21 +95,32 @@
         "Cutting",
         "Dust/fume inhalation",
         "Impact",
-        "Entanglement"
+        "Entanglement",
+        "Falling"
       ],
       "photos": [],
       "voice_notes": [],
       "hrn_before": {
-        "LO": 2.0,
+        "LO": 8.0,
         "FE": 2.5,
         "DPH": 2.0,
-        "NP": 2.0
+        "NP": 4.0
       },
-      "hrn_score_before": 20.0,
-      "risk_band_before": "Significant",
+      "hrn_score_before": 160.0,
+      "risk_band_before": "Very High",
       "risk_reduction_measures": [],
       "standards_references": [],
-      "ai_validation_flags": [],
+      "ai_validation_flags": [
+        "No risk reduction measures documented — LO must not be reduced below 8 in the absence of formally verified engineering or administrative controls (ISO 12100:2011 Cl. 5.5.2.3.2; AS/NZS 4024.1303 Cl. 5.4.3)",
+        "FE = 0.5 (annual exposure) is inconsistent with an operational machine presenting Crushing, Drawing-in, Cutting, and Entanglement hazards — daily/shift exposure frequency is foreseeable and must be assumed absent contrary documented evidence (AS/NZS 4024.1303 Cl. 6.3.2; ISO 12100:2011 Cl. 5.5.2.3.1)",
+        "Dust/fume inhalation hazard identified — requires assessment under AS/NZS 4024.1302 (ISO 14123) Clauses 4 and 5, including identification of substances, exposure routes (inhalation, skin contact), and applicable workplace exposure standards; this hazard type may not be adequately captured by HRN alone",
+        "Seven distinct hazard types identified (Crushing, Drawing-in, Cutting, Dust/fume, Impact, Entanglement, Falling) — each requires a separate HRN assessment; a single composite score risks masking the highest individual risk (ISO 12100:2011 Cl. 5.4; AS/NZS 4024.1303 Cl. 5.3.1)",
+        "Falling hazard identified — safety distances per AS/NZS 4024.1801:2014 (ISO 13857) and minimum gap requirements per AS/NZS 4024.1803:2019 (ISO 13854) must be verified before risk reduction measures are finalised",
+        "With corrected parameters (LO=8, FE=2.5, DPH=2.0, NP=4.0), the recalculated HRN = 8 × 2.5 × 2.0 × 4.0 = 160, placing this hazard in the Very High band (>100–500), which demands immediate safeguarding action contrasted with the entered score of 4.00 (Needs Review)",
+        "LO: entered 2 → recommended 8. The scene observations record no risk reduction measures in place. With no guards, interlocks, or other protective structures documented, the likelihood of occurrence cannot be reduced below the unguarded baseline. Per ISO 12100:2011 Clause 5.5.2.3.2 and AS/NZS 4024.1303 Section 5.4.3, LO must reflect the probability of a hazardous event occurring given the actual conditions presented. Multiple hazard types are present (Crushing, Drawing-in, Cutting, Entanglement, Impact) without any stated engineered controls; LO = 2.0 implies some form of mitigation or separation is operative, which is unsupported by the evidence. Per HRN guidance, LO ≥ 8 is required where no guard or protective structure is visible or documented, consistent with the principle that LO may only be reduced below 8 when administrative or engineering controls are formally documented and verified.",
+        "FE: entered 0.5 → recommended 2.5. FE = 0.5 corresponds to annual or less-frequent exposure, which is inconsistent with a scene involving operational machinery with hazards including Crushing, Drawing-in, Cutting, and Entanglement. Without explicit documentation of access frequency, the default conservative position per AS/NZS 4024.1303 Clause 6.3.2 (F2: frequent to continuous exposure — more than twice per work shift or more than 15 min cumulated exposure per shift) and ISO 12100:2011 Clause 5.5.2.3.1 must apply. For production machinery presenting these hazard types, daily or shift-based interaction with the hazard zone is foreseeable, requiring FE ≥ 2.5. FE = 0.5 is only defensible where formal records confirm access occurs less than once per year, which is not stated here.",
+        "NP: entered 2 → recommended 4. NP = 2.0 is appropriate only where a single person is consistently exposed. The hazard inventory includes Dust/fume inhalation and Impact in addition to contact hazards, and the scene provides no evidence limiting exposure to a single individual. Where the number of persons exposed has not been explicitly verified, and the hazard types identified are consistent with a shared work zone (e.g. dust/fume inhalation affects all persons in the vicinity), a minimum NP of 4 should be applied per ISO 12100:2011 Clause 5.5.2 and the HRN methodology requirement to use conservative values in the absence of substantiating evidence."
+      ],
       "ai_recommendations": [],
       "ai_logs": []
     },
@@ -124,6 +154,6 @@
     }
   ],
   "created_at": "2026-05-20T04:36:41.183000Z",
-  "updated_at": "2026-05-20T04:44:45.384520",
+  "updated_at": "2026-05-21T03:16:59.002544",
   "status": "draft"
 }
