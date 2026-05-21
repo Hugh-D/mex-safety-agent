@@ -52,6 +52,12 @@ const HAZARD_TYPES = [
 
 const MODES = ["Operation", "Maintenance", "Setup", "Cleaning", "Fault finding"]
 
+function snapHrn(param: "LO" | "FE" | "DPH" | "NP", value: number): number {
+  return HRN_PARAMS[param].reduce((best, o) =>
+    Math.abs(o.value - value) < Math.abs(best.value - value) ? o : best
+  ).value
+}
+
 function calcHrn(p: HRNParameters): number {
   return Math.round(p.LO * p.FE * p.DPH * p.NP * 1000) / 1000
 }
@@ -431,10 +437,10 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
                       onClick={() => {
                         const next = { ...hrn }
                         for (const cp of validation.challengedParameters) {
-                          if (cp.parameter === "LO") next.LO = cp.recommendedValue
-                          else if (cp.parameter === "FE") next.FE = cp.recommendedValue
-                          else if (cp.parameter === "DPH") next.DPH = cp.recommendedValue
-                          else if (cp.parameter === "NP") next.NP = cp.recommendedValue
+                          if (cp.parameter === "LO") next.LO = snapHrn("LO", cp.recommendedValue)
+                          else if (cp.parameter === "FE") next.FE = snapHrn("FE", cp.recommendedValue)
+                          else if (cp.parameter === "DPH") next.DPH = snapHrn("DPH", cp.recommendedValue)
+                          else if (cp.parameter === "NP") next.NP = snapHrn("NP", cp.recommendedValue)
                         }
                         setHrn(next)
                       }}

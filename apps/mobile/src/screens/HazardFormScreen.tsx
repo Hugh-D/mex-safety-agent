@@ -464,11 +464,15 @@ export default function HazardFormScreen(props: Props) {
               <Pressable
                 style={({ pressed }) => [styles.applyAiBtn, pressed && { opacity: 0.75 }]}
                 onPress={() => {
+                  const snap = (param: keyof typeof HRN_PARAMS, v: number) =>
+                    HRN_PARAMS[param].reduce((best, o) =>
+                      Math.abs(o.value - v) < Math.abs(best.value - v) ? o : best
+                    ).value
                   for (const cp of validation.challengedParameters) {
-                    if (cp.parameter === "LO") setLO(cp.recommendedValue)
-                    else if (cp.parameter === "FE") setFE(cp.recommendedValue)
-                    else if (cp.parameter === "DPH") setDPH(cp.recommendedValue)
-                    else if (cp.parameter === "NP") setNP(cp.recommendedValue)
+                    if (cp.parameter === "LO") setLO(snap("LO", cp.recommendedValue))
+                    else if (cp.parameter === "FE") setFE(snap("FE", cp.recommendedValue))
+                    else if (cp.parameter === "DPH") setDPH(snap("DPH", cp.recommendedValue))
+                    else if (cp.parameter === "NP") setNP(snap("NP", cp.recommendedValue))
                   }
                 }}
               >
