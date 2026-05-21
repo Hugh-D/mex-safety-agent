@@ -157,25 +157,19 @@ async def analyse_drawing(
         except Exception as exc:
             logger.warning("DXF parse failed in drawing analysis — continuing without DXF context: %s", exc, exc_info=True)
 
-    # Run compliance analysis + topology in parallel when DXF components are available
+    # Always run compliance analysis + topology in parallel
     topology_raw: Optional[dict] = None
     try:
-        if dxf_safety_components:
-            raw, topology_raw = await asyncio.gather(
-                asyncio.to_thread(
-                    compliance_service.analyse_drawing,
-                    image_bytes, drawing_title, target_pl, target_category, context, dxf_context,
-                ),
-                asyncio.to_thread(
-                    compliance_service.extract_topology,
-                    image_bytes, dxf_safety_components,
-                ),
-            )
-        else:
-            raw = await asyncio.to_thread(
+        raw, topology_raw = await asyncio.gather(
+            asyncio.to_thread(
                 compliance_service.analyse_drawing,
                 image_bytes, drawing_title, target_pl, target_category, context, dxf_context,
-            )
+            ),
+            asyncio.to_thread(
+                compliance_service.extract_topology,
+                image_bytes, dxf_safety_components,
+            ),
+        )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
 

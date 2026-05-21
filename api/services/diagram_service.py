@@ -544,7 +544,8 @@ def _build_sld_svg(parse_result: dict, review_result: dict) -> str:
 
 def build_diagram_svg(parsed_dxf, topology: dict, non_conformances: list[dict]) -> str | None:
     """
-    Build ladder SLD from ParsedDrawing + topology.
+    Build ladder SLD from topology data.
+    parsed_dxf is optional — when None, component list is built from topology directly.
     Returns SVG string, or None if topology has no connections.
     """
     if not topology or not topology.get("connections"):
@@ -554,18 +555,31 @@ def build_diagram_svg(parsed_dxf, topology: dict, non_conformances: list[dict]) 
     topo_comp_by_id = {c.get("id", ""): c for c in topology.get("components", [])}
 
     components = []
-    for pc in parsed_dxf.safety_components:
-        comp_id     = pc.tag or pc.block_name
-        topo_info   = topo_comp_by_id.get(comp_id, {})
-        diagram_type = COMPLIANCE_TO_DIAGRAM_TYPE.get(pc.compliance_type, "unknown")
-        components.append({
-            "id":           comp_id,
-            "type":         diagram_type,
-            "label":        pc.description or pc.block_name,
-            "model":        None,
-            "channel":      topo_info.get("channel"),
-            "series_group": topo_info.get("series_group"),
-        })
+    if parsed_dxf is not None:
+        for pc in parsed_dxf.safety_components:
+            comp_id      = pc.tag or pc.block_name
+            topo_info    = topo_comp_by_id.get(comp_id, {})
+            diagram_type = COMPLIANCE_TO_DIAGRAM_TYPE.get(pc.compliance_type, "unknown")
+            components.append({
+                "id":           comp_id,
+                "type":         diagram_type,
+                "label":        pc.description or pc.block_name,
+                "model":        None,
+                "channel":      topo_info.get("channel"),
+                "series_group": topo_info.get("series_group"),
+            })
+    else:
+        for tc in topology.get("components", []):
+            comp_id      = tc.get("id", "")
+            diagram_type = COMPLIANCE_TO_DIAGRAM_TYPE.get(tc.get("compliance_type", ""), "unknown")
+            components.append({
+                "id":           comp_id,
+                "type":         diagram_type,
+                "label":        comp_id,
+                "model":        None,
+                "channel":      tc.get("channel"),
+                "series_group": tc.get("series_group"),
+            })
 
     changes = [
         {

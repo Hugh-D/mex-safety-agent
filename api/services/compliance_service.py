@@ -165,12 +165,10 @@ def extract_topology(
 ) -> dict[str, Any] | None:
     """
     Extract wiring topology (connections + channel/series assignments) from a drawing image.
-    Uses DXF component IDs as ground truth. Called in parallel with analyse_drawing.
+    When dxf_components is provided, uses those IDs as ground truth.
+    When empty, Claude identifies components directly from the image.
     Returns {"components": [...], "connections": [...]} or None on failure.
     """
-    if not dxf_components:
-        return None
-
     client = _client()
     b64 = base64.standard_b64encode(image_bytes).decode()
 
@@ -184,12 +182,12 @@ def extract_topology(
     else:
         media_type = "image/jpeg"
 
-    comp_list = "\n".join(
-        f"  {c.get('id', c.get('tag', '?'))}: {c.get('compliance_type', 'unknown')}"
-        for c in dxf_components
-    )
-
-    prompt = f"""\
+    if dxf_components:
+        comp_list = "\n".join(
+            f"  {c.get('id', c.get('tag', '?'))}: {c.get('compliance_type', 'unknown')}"
+            for c in dxf_components
+        )
+        prompt = f"""\
 Known safety components from the DXF file (use these IDs exactly):
 {comp_list}
 
@@ -214,6 +212,31 @@ Return JSON only — no prose:
       "label": "<wire number or null>"}}
   ]
 }}
+"""
+    else:
+        prompt = """\
+Identify all safety-relevant components visible in this drawing and trace the wiring topology between them.
+
+For each component assign:
+- id: a short unique label matching the tag shown on the drawing (e.g. "ES1", "K1", "K2", "LC1")
+- compliance_type: one of: e_stop, interlock, light_curtain, scanner, safety_relay, safety_plc, contactor, drive, terminal
+- channel: "CH1", "CH2", or null if single-channel
+- series_group: shared label for components wired in series (e.g. "ch1_inputs"), or null
+
+Trace every wiring connection between identified components.
+wire_type: "safety" = main safety chain, "feedback" = output feedback to relay,
+           "power" = 24VDC/0VDC supply, "control" = reset/enable signals.
+
+Return JSON only — no prose:
+{
+  "components": [
+    {"id": "<tag>", "compliance_type": "<type>", "channel": "<CH1|CH2|null>", "series_group": "<label or null>"}
+  ],
+  "connections": [
+    {"from_id": "<source>", "to_id": "<dest>", "from_port": null,
+     "to_port": null, "wire_type": "<safety|power|control|feedback>", "label": null}
+  ]
+}
 """
 
     file_block: dict[str, Any] = (
