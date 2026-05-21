@@ -1,14 +1,15 @@
-@keyframes btn-spin {
-  to { transform: rotate(360deg); }
+@keyframes claude-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 .btn-spinner {
   display: inline-block;
-  width: 13px;
-  height: 13px;
-  border: 2px solid rgba(0,37,89,0.2);
-  border-top-color: #002559;
-  border-radius: 50%;
-  animation: btn-spin 0.65s linear infinite;
+  width: 14px;
+  height: 14px;
+  /* cross shape: 4px-wide arms, 2px rounded tips, centred in 14×14 */
+  clip-path: path('M 5,5 L 5,2 A 2,2 0 0,1 9,2 L 9,5 L 12,5 A 2,2 0 0,1 12,9 L 9,9 L 9,12 A 2,2 0 0,1 5,12 L 5,9 L 2,9 A 2,2 0 0,1 2,5 Z');
+  background: conic-gradient(from 0deg, #002559 0% 75%, rgba(0,37,89,0.18) 75% 100%);
+  animation: claude-spin 1.4s linear infinite;
   vertical-align: middle;
   margin-right: 7px;
   flex-shrink: 0;
@@ -674,6 +675,13 @@ nav button.active {
 .pv-outline-btn:hover { background: #f0f4ff; }
 .pv-outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .pv-ai-box { background: #f0f7ff; border: 1px solid #b8d4f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9rem; line-height: 1.5; }
+.pv-hazard-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eef2f7; }
+.pv-hazard-section-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #6b8299; margin-bottom: 4px; }
+.pv-hazard-list { margin: 0; padding-left: 18px; font-size: 0.88rem; line-height: 1.6; color: #334e68; }
+.pv-hazard-section--flags .pv-hazard-section-title { color: #b45309; }
+.pv-hazard-section--flags .pv-hazard-list { color: #7a4f00; }
+.pv-hazard-section--recommendations .pv-hazard-section-title { color: #2e5fa3; }
+.pv-hazard-section--recommendations .pv-hazard-list { color: #2e5fa3; }
 .pv-hazard-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
 .pv-checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; cursor: pointer; font-weight: normal; }
 .pv-checkbox-label input[type="checkbox"] { width: 15px; height: 15px; flex-shrink: 0; }

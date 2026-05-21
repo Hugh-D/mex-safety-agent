@@ -309,10 +309,36 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
                 </button>
               </div>
               <div className="pv-hazard-detail"><strong>Location:</strong> {h.location}</div>
+              {h.mode && <div className="pv-hazard-detail"><strong>Mode:</strong> {h.mode}</div>}
               {h.task && <div className="pv-hazard-detail"><strong>Task:</strong> {h.task}</div>}
+              {h.typedNotes && <div className="pv-hazard-detail"><strong>Notes:</strong> {h.typedNotes}</div>}
               {h.hazardTypes.length > 0 && (
                 <div className="pv-hazard-chips">
                   {h.hazardTypes.map((t) => <span key={t} className="pv-chip">{t}</span>)}
+                </div>
+              )}
+              {h.riskReductionMeasures && h.riskReductionMeasures.length > 0 && (
+                <div className="pv-hazard-section">
+                  <div className="pv-hazard-section-title">Risk Reduction Measures</div>
+                  <ul className="pv-hazard-list">
+                    {h.riskReductionMeasures.map((m, i) => <li key={i}>{m}</li>)}
+                  </ul>
+                </div>
+              )}
+              {h.aiValidationFlags && h.aiValidationFlags.length > 0 && (
+                <div className="pv-hazard-section pv-hazard-section--flags">
+                  <div className="pv-hazard-section-title">AI Validation Flags</div>
+                  <ul className="pv-hazard-list">
+                    {h.aiValidationFlags.map((f, i) => <li key={i}>⚑ {f}</li>)}
+                  </ul>
+                </div>
+              )}
+              {h.aiRecommendations && h.aiRecommendations.length > 0 && (
+                <div className="pv-hazard-section pv-hazard-section--recommendations">
+                  <div className="pv-hazard-section-title">AI Recommendations</div>
+                  <ul className="pv-hazard-list">
+                    {h.aiRecommendations.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
                 </div>
               )}
             </div>
