@@ -83,6 +83,7 @@ interface Props {
 }
 
 export default function ProjectView({ project, onBack, onProjectUpdate }: Props) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [showForm, setShowForm] = useState(false)
   const [editingHazardIdx, setEditingHazardIdx] = useState<number | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -292,6 +293,14 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
 
         {project.hazards.map((h, idx) => {
           const b = getRiskBand(h.hrnScoreBefore)
+          const toggle = (section: string) => setExpandedSections((prev) => {
+            const next = new Set(prev)
+            const key = `${h.id}:${section}`
+            next.has(key) ? next.delete(key) : next.add(key)
+            return next
+          })
+          const isOpen = (section: string) => expandedSections.has(`${h.id}:${section}`)
+
           return (
             <div key={h.id} className="pv-hazard-card">
               <div className="pv-hazard-card-header">
@@ -312,33 +321,60 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
               {h.mode && <div className="pv-hazard-detail"><strong>Mode:</strong> {h.mode}</div>}
               {h.task && <div className="pv-hazard-detail"><strong>Task:</strong> {h.task}</div>}
               {h.typedNotes && <div className="pv-hazard-detail"><strong>Notes:</strong> {h.typedNotes}</div>}
+
               {h.hazardTypes.length > 0 && (
-                <div className="pv-hazard-chips">
-                  {h.hazardTypes.map((t) => <span key={t} className="pv-chip">{t}</span>)}
+                <div className="pv-hazard-section">
+                  <button className="pv-section-toggle" onClick={() => toggle("types")}>
+                    <span className="pv-section-chevron">{isOpen("types") ? "▾" : "▸"}</span>
+                    Hazard Types <span className="pv-section-count">({h.hazardTypes.length})</span>
+                  </button>
+                  {isOpen("types") && (
+                    <div className="pv-hazard-chips pv-section-body">
+                      {h.hazardTypes.map((t) => <span key={t} className="pv-chip">{t}</span>)}
+                    </div>
+                  )}
                 </div>
               )}
+
               {h.riskReductionMeasures && h.riskReductionMeasures.length > 0 && (
                 <div className="pv-hazard-section">
-                  <div className="pv-hazard-section-title">Risk Reduction Measures</div>
-                  <ul className="pv-hazard-list">
-                    {h.riskReductionMeasures.map((m, i) => <li key={i}>{m}</li>)}
-                  </ul>
+                  <button className="pv-section-toggle" onClick={() => toggle("rrm")}>
+                    <span className="pv-section-chevron">{isOpen("rrm") ? "▾" : "▸"}</span>
+                    Risk Reduction Measures <span className="pv-section-count">({h.riskReductionMeasures.length})</span>
+                  </button>
+                  {isOpen("rrm") && (
+                    <ul className="pv-hazard-list pv-section-body">
+                      {h.riskReductionMeasures.map((m, i) => <li key={i}>{m}</li>)}
+                    </ul>
+                  )}
                 </div>
               )}
+
               {h.aiValidationFlags && h.aiValidationFlags.length > 0 && (
                 <div className="pv-hazard-section pv-hazard-section--flags">
-                  <div className="pv-hazard-section-title">AI Validation Flags</div>
-                  <ul className="pv-hazard-list">
-                    {h.aiValidationFlags.map((f, i) => <li key={i}>⚑ {f}</li>)}
-                  </ul>
+                  <button className="pv-section-toggle pv-section-toggle--flags" onClick={() => toggle("flags")}>
+                    <span className="pv-section-chevron">{isOpen("flags") ? "▾" : "▸"}</span>
+                    AI Validation Flags <span className="pv-section-count">({h.aiValidationFlags.length})</span>
+                  </button>
+                  {isOpen("flags") && (
+                    <ul className="pv-hazard-list pv-section-body">
+                      {h.aiValidationFlags.map((f, i) => <li key={i}>⚑ {f}</li>)}
+                    </ul>
+                  )}
                 </div>
               )}
+
               {h.aiRecommendations && h.aiRecommendations.length > 0 && (
                 <div className="pv-hazard-section pv-hazard-section--recommendations">
-                  <div className="pv-hazard-section-title">AI Recommendations</div>
-                  <ul className="pv-hazard-list">
-                    {h.aiRecommendations.map((r, i) => <li key={i}>{r}</li>)}
-                  </ul>
+                  <button className="pv-section-toggle pv-section-toggle--recs" onClick={() => toggle("recs")}>
+                    <span className="pv-section-chevron">{isOpen("recs") ? "▾" : "▸"}</span>
+                    AI Recommendations <span className="pv-section-count">({h.aiRecommendations.length})</span>
+                  </button>
+                  {isOpen("recs") && (
+                    <ul className="pv-hazard-list pv-section-body">
+                      {h.aiRecommendations.map((r, i) => <li key={i}>{r}</li>)}
+                    </ul>
+                  )}
                 </div>
               )}
             </div>
