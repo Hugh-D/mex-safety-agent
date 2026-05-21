@@ -175,7 +175,7 @@ async def analyse_drawing(
 
     # Generate SLD if topology + DXF both available
     svg_diagram: Optional[str] = None
-    if topology_raw and parsed_dxf:
+    if topology_raw:
         try:
             from services import diagram_service
             non_conformances = raw.get("non_conformances", [])
