@@ -159,7 +159,11 @@ Return JSON with this exact structure:
     return _parse_json(response.content[0].text)
 
 
+import re as _re
+
+# Keys match both underscore form (from analysis prompt) and natural language fallbacks
 _TYPE_TO_COMPLIANCE: dict[str, str] = {
+    "e_stop":           "e_stop",
     "e-stop":           "e_stop",
     "estop":            "e_stop",
     "emergency stop":   "e_stop",
@@ -167,34 +171,70 @@ _TYPE_TO_COMPLIANCE: dict[str, str] = {
     "gate":             "interlock",
     "guard":            "interlock",
     "door":             "interlock",
+    "light_curtain":    "light_curtain",
     "light curtain":    "light_curtain",
     "light guard":      "light_curtain",
     "scanner":          "scanner",
     "area scanner":     "scanner",
     "laser scanner":    "scanner",
+    "safety_relay":     "safety_relay",
     "safety relay":     "safety_relay",
     "safety controller":"safety_relay",
+    "safety_plc":       "safety_plc",
     "safety plc":       "safety_plc",
-    "plc":              "safety_plc",
     "contactor":        "contactor",
     "drive":            "drive",
     "vfd":              "drive",
     "terminal":         "terminal",
 }
 
+# Types from analysis prompt that contribute nothing to the SLD
+_SKIP_TYPES = {"other", "sensor"}
+
+# Safety-relevant compliance types (only these go into the SLD ground truth)
+_SLD_COMPLIANCE_TYPES = {"e_stop", "interlock", "light_curtain", "scanner", "safety_relay", "safety_plc", "contactor", "drive"}
+
+
+def _extract_tag(component_str: str) -> str:
+    """Extract short drawing tag from a verbose component description."""
+    s = component_str.strip()
+    # Pattern 1: 'TAG – description' or 'TAG — description'
+    m = _re.match(r'^([A-Z][A-Z0-9\-]*\d+)\s*[–—\-]', s)
+    if m:
+        return m.group(1)
+    # Pattern 2: '(TAG)' suffix e.g. 'CompactLogix PLC (A10)'
+    m = _re.search(r'\(([A-Z]{1,3}\d+)\)\s*$', s)
+    if m:
+        return m.group(1)
+    # Pattern 3: standalone model number — uppercase+digits token e.g. 'MSR127T'
+    m = _re.search(r'\b([A-Z]{2,}[0-9][A-Z0-9]*)\b', s)
+    if m:
+        return m.group(1)
+    # Fallback: first word
+    return s.split()[0] if s else s
+
 
 def components_from_analysis(components_identified: list[dict]) -> list[dict]:
-    """Convert analyse_drawing componentsIdentified to the format expected by extract_topology."""
+    """
+    Convert analyse_drawing componentsIdentified to the ground-truth format for extract_topology.
+    Filters to safety-relevant components only and extracts short tag labels.
+    """
     result = []
+    seen_tags: set[str] = set()
     for c in components_identified:
-        tag = c.get("component", "").strip()
-        if not tag:
-            continue
         type_str = c.get("type", "").lower().strip()
+        if type_str in _SKIP_TYPES:
+            continue
         compliance_type = next(
-            (v for k, v in _TYPE_TO_COMPLIANCE.items() if k in type_str),
+            (v for k, v in _TYPE_TO_COMPLIANCE.items() if k == type_str or k in type_str),
             "unknown",
         )
+        if compliance_type not in _SLD_COMPLIANCE_TYPES:
+            continue
+        tag = _extract_tag(c.get("component", "").strip())
+        if not tag or tag in seen_tags:
+            continue
+        seen_tags.add(tag)
         result.append({"id": tag, "compliance_type": compliance_type})
     return result
 
@@ -288,7 +328,7 @@ Return JSON only — no prose:
     try:
         response = client.messages.create(
             model=MODEL,
-            max_tokens=4096,
+            max_tokens=8192,
             system=[{
                 "type": "text",
                 "text": (
