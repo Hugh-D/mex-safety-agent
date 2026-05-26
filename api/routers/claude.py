@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 import logging
-import time
 import uuid
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -91,13 +89,11 @@ class ConclusionResponse(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 def _run_photo_job(job_id: str, image_bytes: bytes, site_label: str, equipment_ref: Optional[str]) -> None:
-    t0 = time.time()
     try:
         result, ai_log = claude_service.analyse_photo(image_bytes, site_label, equipment_ref)
-        log.debug("analyse_photo OK in %.1fs", time.time() - t0)
         _photo_jobs[job_id] = {"status": "complete", "result": result}
     except Exception as exc:
-        log.debug("analyse_photo FAILED after %.1fs: %s", time.time() - t0, exc)
+        log.error("analyse_photo failed: %s", exc)
         _photo_jobs[job_id] = {"status": "error", "detail": str(exc)}
 
 
@@ -134,13 +130,11 @@ _voice_jobs: dict[str, dict] = {}
 
 
 def _run_voice_job(job_id: str, audio_bytes: bytes, filename: str, site_label: str) -> None:
-    t0 = time.time()
     try:
         result, ai_log = voice_service.transcribe_voice(audio_bytes, filename, site_label)
-        log.debug("transcribe_voice OK in %.1fs", time.time() - t0)
         _voice_jobs[job_id] = {"status": "complete", "result": result}
     except Exception as exc:
-        log.debug("transcribe_voice FAILED after %.1fs: %s", time.time() - t0, exc)
+        log.error("transcribe_voice failed: %s", exc)
         _voice_jobs[job_id] = {"status": "error", "detail": str(exc)}
 
 
