@@ -76,6 +76,10 @@ function getRiskBand(score: number): { label: string; bg: string; fg: string } {
 
 const DEFAULT_HRN: HRNParameters = { LO: 2, FE: 2.5, DPH: 2, NP: 1 }
 
+function photoUrl(filepath: string): string {
+  return `${PHOTO_BASE}/photos/${filepath.split("/").map(encodeURIComponent).join("/")}`
+}
+
 interface Props {
   project: AssessmentProject
   onBack: () => void
@@ -120,7 +124,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     setHazardTypes([...h.hazardTypes])
     setHrn({ LO: h.hrnBefore.LO, FE: h.hrnBefore.FE, DPH: h.hrnBefore.DPH, NP: h.hrnBefore.NP })
     const cachedPreview = photoCacheRef.current.get(h.id) ?? null
-    const serverPreview = h.photos.length > 0 ? `${PHOTO_BASE}/photos/${h.photos[0].filepath}` : null
+    const serverPreview = h.photos.length > 0 ? photoUrl(h.photos[0].filepath) : null
     setPhotoFile(null); setPhotoPreview(cachedPreview ?? serverPreview); setAiResult(null); setValidation(null); setError(null)
     setEditingHazardIdx(idx)
     setShowForm(true)
@@ -182,7 +186,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
         if (photoFile) {
           const { filepath } = await uploadHazardPhoto(projectNumber, existing.id, photoFile)
           photos = [{ filepath, timestamp: new Date().toISOString(), siteLabel: location.trim(), annotations: [] }]
-          photoCacheRef.current.set(existing.id, `${PHOTO_BASE}/photos/${filepath}`)
+          photoCacheRef.current.set(existing.id, photoUrl(filepath))
         }
         const edited: HazardEntry = {
           ...existing,
@@ -203,7 +207,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
         if (photoFile) {
           const { filepath } = await uploadHazardPhoto(projectNumber, hazardId, photoFile)
           photos = [{ filepath, timestamp: new Date().toISOString(), siteLabel: location.trim(), annotations: [] }]
-          photoCacheRef.current.set(hazardId, `${PHOTO_BASE}/photos/${filepath}`)
+          photoCacheRef.current.set(hazardId, photoUrl(filepath))
         }
         const newHazard: HazardEntry = {
           id: hazardId,
@@ -329,7 +333,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
               </div>
               {h.photos.length > 0 && (
                 <img
-                  src={`${PHOTO_BASE}/photos/${h.photos[0].filepath}`}
+                  src={photoUrl(h.photos[0].filepath)}
                   alt={`${h.id} site photo`}
                   className="pv-hazard-photo-thumb"
                 />
@@ -419,7 +423,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
               />
               <div className="pv-photo-row">
                 <button type="button" className="pv-outline-btn" onClick={() => fileInputRef.current?.click()}>
-                  {photoFile ? "Change Photo" : "Upload Photo"}
+                  {(photoFile || photoPreview) ? "Change Photo" : "Upload Photo"}
                 </button>
                 {photoFile && (
                   <button type="button" className="primary-btn" onClick={handleAnalyse} disabled={analysing}>
