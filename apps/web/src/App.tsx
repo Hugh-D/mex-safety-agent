@@ -4,6 +4,7 @@ import type { HRNParameters, PLRRequest, HRNScoreResponse, PLRResultResponse, As
 import DesignReview from "./components/DesignReview"
 import DocumentReview from "./components/DocumentReview"
 import ProjectView from "./components/ProjectView"
+import { ApiKeyGate, ChangeKeyButton } from "./components/ApiKeyGate"
 
 const HRN_PARAMS = {
   LO: [
@@ -171,6 +172,7 @@ const defaultParameters: HRNParameters = {
 }
 
 function App() {
+  const [gateKey, setGateKey] = useState(0)
   const [activeTab, setActiveTab] = useState<"calculator" | "projects" | "design-review" | "document-review">("calculator")
   const [parameters, setParameters] = useState<HRNParameters>(defaultParameters)
   const [severity, setSeverity] = useState("S2")
@@ -296,11 +298,12 @@ function App() {
   }
 
   return (
+    <ApiKeyGate key={gateKey} onKeyChange={() => setGateKey((k) => k + 1)}>
     <div className="app-shell">
       <header>
-        <h1>MEX Safety Platform — Web Demo</h1>
+        <h1>MEX Safety Platform</h1>
         <nav>
-          <button 
+          <button
             onClick={() => setActiveTab("calculator")}
             className={activeTab === "calculator" ? "active" : ""}
           >
@@ -325,6 +328,7 @@ function App() {
             Document Review
           </button>
         </nav>
+        <ChangeKeyButton onChanged={() => setGateKey((k) => k + 1)} />
       </header>
 
       {activeTab === "calculator" && (
@@ -497,6 +501,7 @@ function App() {
         </section>
       )}
     </div>
+    </ApiKeyGate>
   )
 }
 

@@ -1,3 +1,108 @@
+/* ── API Key Gate ─────────────────────────────────────────────────────────── */
+.key-gate-overlay {
+  position: fixed;
+  inset: 0;
+  background: #f6f8fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.key-gate-card {
+  background: white;
+  border-radius: 16px;
+  border: 1.5px solid #e2eaf3;
+  padding: 48px 44px;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0,37,89,0.10);
+}
+
+.key-gate-logo {
+  background: #002559;
+  color: white;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.key-gate-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #002559;
+  margin: 0;
+}
+
+.key-gate-sub {
+  font-size: 14px;
+  color: #6b8299;
+  text-align: center;
+  margin: 0;
+}
+
+.key-gate-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #c8d8ea;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: 'Courier New', monospace;
+  color: #102a43;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.key-gate-input:focus {
+  border-color: #002559;
+}
+
+.key-gate-error {
+  font-size: 13px;
+  color: #c0392b;
+  margin: 0;
+  text-align: center;
+}
+
+.key-gate-btn {
+  width: 100%;
+  padding: 12px;
+  background: #002559;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.key-gate-btn:hover:not(:disabled) { background: #1a4a8a; }
+.key-gate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Change Key button (header) ───────────────────────────────────────────── */
+.change-key-btn {
+  font-size: 12px;
+  color: #6b8299;
+  background: none;
+  border: 1px solid #c8d8ea;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.change-key-btn:hover { color: #002559; border-color: #002559; }
+
+/* ── ──────────────────────────────────────────────────────────────────────── */
 @keyframes claude-spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }

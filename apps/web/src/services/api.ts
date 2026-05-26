@@ -12,8 +12,21 @@ const API_BASE = "http://localhost:8000/api"
 export const PHOTO_BASE = "http://localhost:8000"
 
 function authHeader(): Record<string, string> {
-  const key = import.meta.env.VITE_API_KEY as string | undefined
+  const key =
+    localStorage.getItem("mex_api_key") ??
+    ((import.meta as any).env?.VITE_API_KEY as string | undefined) ?? ""
   return key ? { "X-API-Key": key } : {}
+}
+
+export async function validateApiKey(key: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/assessment/projects`, {
+      headers: { "X-API-Key": key },
+    })
+    return res.ok
+  } catch {
+    return false
+  }
 }
 
 async function throwWithDetail(response: Response, prefix: string): Promise<never> {
