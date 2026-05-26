@@ -5,11 +5,12 @@ import io
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Form, HTTPException, UploadFile, File
+from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
 from fastapi.responses import Response
 from pydantic import BaseModel
 
 from services import compliance_service, dxf_parser
+from services.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -122,7 +123,9 @@ class ComplianceReportRequest(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 @router.post("/compliance/drawing", response_model=DrawingAnalysisResponse)
+@limiter.limit("20/minute")
 async def analyse_drawing(
+    request: Request,
     file: UploadFile = File(...),
     drawing_title: str = Form(...),
     target_pl: str = Form(...),
@@ -387,11 +390,12 @@ async def extract_document_text(file: UploadFile = File(...)) -> dict:
 
 
 @router.post("/compliance/design-review", response_model=DesignReviewResponse)
-def review_design(request: DesignReviewRequest) -> DesignReviewResponse:
+@limiter.limit("20/minute")
+def review_design(request: Request, body: DesignReviewRequest) -> DesignReviewResponse:
     """Review a design document (text) for safety function completeness."""
     try:
         raw = compliance_service.review_design_document(
-            request.documentText, request.targetPl, request.targetCategory, request.raHazardIds,
+            body.documentText, body.targetPl, body.targetCategory, body.raHazardIds,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")

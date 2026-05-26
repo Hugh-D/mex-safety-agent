@@ -1,11 +1,15 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from services.rate_limit import limiter
 from routers.assessment import router as assessment_router
 from routers.project import router as project_router
 from routers.report import router as report_router
 from routers.claude import router as claude_router
 from routers.compliance import router as compliance_router
+from services.auth import require_api_key
 
 import os
 from dotenv import load_dotenv
@@ -16,8 +20,15 @@ app = FastAPI(
     title="MEX Safety Platform API",
     version="0.1.0",
     description="Deterministic HRN, PLr, and report generation services for the MEX Safety Platform",
+    dependencies=[],
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ---------------------------------------------------------------------------
+# CORS
+# ---------------------------------------------------------------------------
 _DEFAULT_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:8082",
@@ -38,11 +49,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(assessment_router, prefix="/api", tags=["assessment"])
-app.include_router(project_router, prefix="/api", tags=["project"])
-app.include_router(report_router, prefix="/api", tags=["report"])
-app.include_router(claude_router, prefix="/api", tags=["ai"])
-app.include_router(compliance_router, prefix="/api", tags=["compliance"])
+# ---------------------------------------------------------------------------
+# Routers — AI endpoints get stricter rate limit via dependency
+# ---------------------------------------------------------------------------
+_auth = [Depends(require_api_key)]
+
+app.include_router(assessment_router, prefix="/api", tags=["assessment"], dependencies=_auth)
+app.include_router(project_router, prefix="/api", tags=["project"], dependencies=_auth)
+app.include_router(report_router, prefix="/api", tags=["report"], dependencies=_auth)
+app.include_router(claude_router, prefix="/api", tags=["ai"], dependencies=_auth)
+app.include_router(compliance_router, prefix="/api", tags=["compliance"], dependencies=_auth)
 
 from services.project_store import PHOTOS_DIR  # noqa: E402
 app.mount("/photos", StaticFiles(directory=str(PHOTOS_DIR)), name="photos")

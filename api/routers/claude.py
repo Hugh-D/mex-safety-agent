@@ -7,12 +7,13 @@ import uuid
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Any, Optional
 
 from models.schemas import HRNParameters, HazardEntry, ProjectBrief, SafetyFunctionSpec, ReportDraftRequest
 from services import claude_service, voice_service
+from services.rate_limit import limiter
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -101,7 +102,9 @@ def _run_photo_job(job_id: str, image_bytes: bytes, site_label: str, equipment_r
 
 
 @router.post("/ai/photo/start")
+@limiter.limit("20/minute")
 async def analyse_photo_start(
+    request: Request,
     file: UploadFile = File(...),
     site_label: str = Form(...),
     equipment_ref: Optional[str] = Form(None),
@@ -142,7 +145,9 @@ def _run_voice_job(job_id: str, audio_bytes: bytes, filename: str, site_label: s
 
 
 @router.post("/ai/voice/start")
+@limiter.limit("20/minute")
 async def transcribe_voice_start(
+    request: Request,
     file: UploadFile = File(...),
     site_label: str = Form(...),
 ) -> dict:
@@ -166,7 +171,9 @@ def transcribe_voice_poll(job_id: str) -> dict:
 
 
 @router.post("/ai/photo", response_model=PhotoAnalysisResponse)
+@limiter.limit("20/minute")
 async def analyse_photo(
+    request: Request,
     file: UploadFile = File(...),
     site_label: str = Form(...),
     equipment_ref: Optional[str] = Form(None),
@@ -181,14 +188,15 @@ async def analyse_photo(
 
 
 @router.post("/ai/hrn/validate", response_model=HRNValidationResponse)
-def validate_hrn(request: HRNValidationRequest) -> HRNValidationResponse:
+@limiter.limit("20/minute")
+def validate_hrn(request: Request, body: HRNValidationRequest) -> HRNValidationResponse:
     """Validate HRN parameter selections against observed scene context."""
     try:
         result, ai_log = claude_service.validate_hrn(
-            request.hrn_params,
-            request.hazard_types,
-            request.observations,
-            request.risk_reduction_measures,
+            body.hrn_params,
+            body.hazard_types,
+            body.observations,
+            body.risk_reduction_measures,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
@@ -197,17 +205,18 @@ def validate_hrn(request: HRNValidationRequest) -> HRNValidationResponse:
 
 
 @router.post("/ai/risk-reduction", response_model=RiskReductionResponse)
-def recommend_risk_reduction(request: RiskReductionRequest) -> RiskReductionResponse:
+@limiter.limit("20/minute")
+def recommend_risk_reduction(request: Request, body: RiskReductionRequest) -> RiskReductionResponse:
     """Get standards-referenced risk reduction recommendations for a hazard."""
     try:
         result, ai_log = claude_service.recommend_risk_reduction(
-            request.location,
-            request.mode,
-            request.task,
-            request.hazard_types,
-            request.hrn_score,
-            request.risk_band,
-            request.existing_measures,
+            body.location,
+            body.mode,
+            body.task,
+            body.hazard_types,
+            body.hrn_score,
+            body.risk_band,
+            body.existing_measures,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
@@ -216,7 +225,9 @@ def recommend_risk_reduction(request: RiskReductionRequest) -> RiskReductionResp
 
 
 @router.post("/ai/voice", response_model=VoiceTranscriptResponse)
+@limiter.limit("20/minute")
 async def transcribe_voice_note(
+    request: Request,
     file: UploadFile = File(...),
     site_label: str = Form(...),
 ) -> VoiceTranscriptResponse:
@@ -238,13 +249,14 @@ async def transcribe_voice_note(
 
 
 @router.post("/ai/conclusion", response_model=ConclusionResponse)
-def synthesise_conclusion(request: ConclusionRequest) -> ConclusionResponse:
+@limiter.limit("20/minute")
+def synthesise_conclusion(request: Request, body: ConclusionRequest) -> ConclusionResponse:
     """Synthesise a conclusion section from a completed assessment."""
     try:
         result, ai_log = claude_service.synthesise_conclusion(
-            request.project_brief,
-            request.hazards,
-            request.safety_functions,
+            body.project_brief,
+            body.hazards,
+            body.safety_functions,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
