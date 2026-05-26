@@ -400,86 +400,59 @@
 
   <!-- Intro -->
   <div class="intro">
-    Each team member gets a <strong>personal API key</strong> that authenticates your device with the MEX Safety Platform API.
-    This takes under two minutes. Follow the steps for your platform below, then confirm with Hugh that your key appears in the table.
+    No installation required. Open the link below in any browser, enter your personal key when prompted, and you're in.
+    The key is saved in your browser — you only need to enter it once.
   </div>
 
-  <!-- Step cards -->
-  <div class="steps">
+  <!-- Step cards — now just 2 steps, full width -->
+  <div class="steps" style="grid-template-columns: 1fr 1fr;">
 
-    <!-- Web -->
+    <!-- Step 1 -->
     <div class="card">
-      <div class="card-badge"><span class="icon">🖥</span> Web App</div>
-      <h2>Desktop (Browser)</h2>
-      <p class="subtitle">apps/web/.env.local</p>
+      <div class="card-badge"><span class="icon">🌐</span> Step 1</div>
+      <h2>Open the platform</h2>
+      <p class="subtitle">Works in Chrome, Edge, Safari, Firefox</p>
 
       <div class="step-row">
         <div class="step-num">1</div>
         <div class="step-content">
-          <p>Clone the repository (first time only), then open the project in VS Code or a terminal:</p>
-          <code>git clone https://github.com/Hugh-D/mex-safety-agent.git
-cd mex-safety-agent</code>
+          <p>Open your browser and go to:</p>
+          <code><span class="value">https://safety.mexeng.com.au</span></code>
         </div>
       </div>
 
       <div class="step-row">
         <div class="step-num">2</div>
         <div class="step-content">
-          <p>Inside the project, create a new file at <strong>apps/web/.env.local</strong> (note the leading dot)</p>
-        </div>
-      </div>
-
-      <div class="step-row">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <div class="label">Paste exactly this — replace with your key</div>
-          <code><span class="key">VITE_API_KEY</span>=<span class="value">mex-yourname-2026</span></code>
-        </div>
-      </div>
-
-      <div class="step-row">
-        <div class="step-num">4</div>
-        <div class="step-content">
-          <p>Save and restart the dev server (<code style="display:inline;background:none;color:var(--navy);font-size:13px;padding:0">npm run dev</code>)</p>
+          <p>You will see a login screen asking for your API key.</p>
         </div>
       </div>
     </div>
 
-    <!-- Mobile -->
+    <!-- Step 2 -->
     <div class="card">
-      <div class="card-badge"><span class="icon">📱</span> Mobile App</div>
-      <h2>Mobile (Expo)</h2>
-      <p class="subtitle">apps/mobile/.env</p>
+      <div class="card-badge"><span class="icon">🔑</span> Step 2</div>
+      <h2>Enter your key</h2>
+      <p class="subtitle">Find your key in the table below</p>
 
       <div class="step-row">
         <div class="step-num">1</div>
         <div class="step-content">
-          <p>Clone the repository (first time only), then open the project in VS Code or a terminal:</p>
-          <code>git clone https://github.com/Hugh-D/mex-safety-agent.git
-cd mex-safety-agent</code>
+          <p>Find your name in the table below and copy your key exactly as shown.</p>
         </div>
       </div>
 
       <div class="step-row">
         <div class="step-num">2</div>
         <div class="step-content">
-          <p>Open the existing file at <strong>apps/mobile/.env</strong> (already exists — do not create a new one)</p>
+          <p>Paste it into the key field and click <strong>Save &amp; Continue</strong>.</p>
         </div>
       </div>
 
       <div class="step-row">
         <div class="step-num">3</div>
         <div class="step-content">
-          <div class="label">Find this line and replace the placeholder key</div>
-          <code><span class="comment"># Replace the placeholder with your key from the table below:</span>
-<span class="key">EXPO_PUBLIC_API_KEY</span>=<span class="value">mex-yourname-2026</span></code>
-        </div>
-      </div>
-
-      <div class="step-row">
-        <div class="step-num">4</div>
-        <div class="step-content">
-          <p>Save and restart Expo (<code style="display:inline;background:none;color:var(--navy);font-size:13px;padding:0">npx expo start --web</code>)</p>
+          <p>Done — the platform will open. Your key is saved in this browser and won't be asked for again.</p>
         </div>
       </div>
     </div>
@@ -488,41 +461,35 @@ cd mex-safety-agent</code>
 
   <!-- Key table -->
   <div class="keys-section">
-    <h2>Team Key Registry</h2>
-    <p class="subtitle">Use the key assigned to your name exactly as shown — no spaces, all lowercase</p>
+    <h2>Your API Key</h2>
+    <p class="subtitle">Find your name and use the key shown — type it exactly, all lowercase, no spaces</p>
     <table>
       <thead>
         <tr>
           <th>Name</th>
           <th>API Key</th>
-          <th>Platform</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="name-cell">Hugh</td>
           <td><span class="key-pill">mex-hugh-2026</span></td>
-          <td><span class="platform-tag tag-both">Both</span></td>
         </tr>
         <tr>
           <td class="name-cell">Eion</td>
           <td><span class="key-pill">mex-eion-2026</span></td>
-          <td><span class="platform-tag tag-both">Both</span></td>
         </tr>
         <tr>
           <td class="name-cell">Jie</td>
           <td><span class="key-pill">mex-jie-2026</span></td>
-          <td><span class="platform-tag tag-both">Both</span></td>
         </tr>
         <tr>
           <td class="name-cell">Sam</td>
           <td><span class="key-pill">mex-sam-2026</span></td>
-          <td><span class="platform-tag tag-both">Both</span></td>
         </tr>
         <tr>
           <td class="name-cell">Russell</td>
           <td><span class="key-pill">mex-russell-2026</span></td>
-          <td><span class="platform-tag tag-both">Both</span></td>
         </tr>
       </tbody>
     </table>
@@ -531,12 +498,12 @@ cd mex-safety-agent</code>
   <!-- Notices -->
   <div class="notice-row">
     <div class="notice green">
-      <strong>✓ How it works</strong>
-      Your key is sent as an <code style="display:inline;background:none;color:var(--green);font-size:12px;padding:0">X-API-Key</code> header with every API request. The server checks it against the approved list and returns 403 if it doesn't match.
+      <strong>✓ Saved automatically</strong>
+      Your key is stored in this browser only. If you switch to a new device or browser, you'll be asked to enter it once more.
     </div>
     <div class="notice amber">
       <strong>⚠ Keep it private</strong>
-      Never commit <strong>.env.local</strong> or <strong>.env</strong> to git — these files are already in .gitignore. Don't share your key in Slack or email. Contact Hugh if you think it's been exposed.
+      Don't share your key with anyone or post it in Slack or email. Contact Hugh if you think it's been exposed.
     </div>
   </div>
 
