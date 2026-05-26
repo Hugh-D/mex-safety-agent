@@ -126,7 +126,6 @@
       padding: 28px;
       border: 1.5px solid #e2eaf3;
       position: relative;
-      overflow: hidden;
     }
 
     .card-badge {
@@ -402,7 +401,7 @@
   <!-- Intro -->
   <div class="intro">
     Each team member gets a <strong>personal API key</strong> that authenticates your device with the MEX Safety Platform API.
-    This takes under two minutes. Follow the steps for your platform below, then confirm with Buzzy that your key appears in the table.
+    This takes under two minutes. Follow the steps for your platform below, then confirm with Hugh that your key appears in the table.
   </div>
 
   <!-- Step cards -->
@@ -417,14 +416,16 @@
       <div class="step-row">
         <div class="step-num">1</div>
         <div class="step-content">
-          <p>Open the project folder and navigate to <strong>apps/web/</strong></p>
+          <p>Clone the repository (first time only), then open the project in VS Code or a terminal:</p>
+          <code>git clone https://github.com/Hugh-D/mex-safety-agent.git
+cd mex-safety-agent</code>
         </div>
       </div>
 
       <div class="step-row">
         <div class="step-num">2</div>
         <div class="step-content">
-          <p>Create a new file called <strong>.env.local</strong> (note the dot)</p>
+          <p>Inside the project, create a new file at <strong>apps/web/.env.local</strong> (note the leading dot)</p>
         </div>
       </div>
 
@@ -453,14 +454,16 @@
       <div class="step-row">
         <div class="step-num">1</div>
         <div class="step-content">
-          <p>Open the project folder and navigate to <strong>apps/mobile/</strong></p>
+          <p>Clone the repository (first time only), then open the project in VS Code or a terminal:</p>
+          <code>git clone https://github.com/Hugh-D/mex-safety-agent.git
+cd mex-safety-agent</code>
         </div>
       </div>
 
       <div class="step-row">
         <div class="step-num">2</div>
         <div class="step-content">
-          <p>Open the existing file <strong>.env</strong> (already exists — do not create a new one)</p>
+          <p>Open the existing file at <strong>apps/mobile/.env</strong> (already exists — do not create a new one)</p>
         </div>
       </div>
 
@@ -533,14 +536,14 @@
     </div>
     <div class="notice amber">
       <strong>⚠ Keep it private</strong>
-      Never commit <strong>.env.local</strong> or <strong>.env</strong> to git — these files are already in .gitignore. Don't share your key in Slack or email. Contact Buzzy if you think it's been exposed.
+      Never commit <strong>.env.local</strong> or <strong>.env</strong> to git — these files are already in .gitignore. Don't share your key in Slack or email. Contact Hugh if you think it's been exposed.
     </div>
   </div>
 
   <!-- Footer -->
   <div class="footer">
     <p><strong>MEX Engineering Group</strong> — mexeng.com.au</p>
-    <p>Questions? Contact <strong>Buzzy</strong> · MEX Safety Platform v1.0</p>
+    <p>Questions? Contact <strong>Hugh</strong> · MEX Safety Platform v1.0</p>
   </div>
 
   <p class="print-hint">Print or save as PDF: File → Print → Save as PDF</p>
