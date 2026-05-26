@@ -227,4 +227,23 @@ This file records every significant decision point built into the app — why it
 
 ---
 
-*Last updated: 2026-05-22. Add new entries as decisions are made during development.*
+*Last updated: 2026-05-26. Add new entries as decisions are made during development.*
+
+---
+
+## ED-014 — DOCX HRN Band Colour Is Static (Known Limitation)
+
+**Decision:** The HRN cell background colour in the Word report is set at generation time and does not update when the engineer edits LO, FE, DPH, or NP values in the document.
+
+**Why:** Word cell background colours are static XML properties (`w:shd`). Word has no built-in conditional formatting for table cells equivalent to Excel. Making colours dynamic would require embedding a VBA macro and saving as `.docm` (macro-enabled format), which many organisations restrict or block.
+
+**Current behaviour:**
+- The HRN value in column G is a live formula (`=C4*D4*E4*F4`). Press **F9** (or right-click → Update Field) after editing parameters to recalculate the score.
+- The band colour reflects the risk at report generation time. It does not change when the formula result changes.
+
+**How engineers should respond:**
+- Use the Word document for edits and internal review — it is an editable draft.
+- Re-generate the PDF from the platform for the final signed-off version; the PDF always reflects current parameter values with correct band colours.
+- If the engineer changes LO/FE/DPH/NP and the HRN moves to a different band, note the new band in the document comments or in the Risk Reduction row.
+
+**Future option:** A `.docm` with an embedded `UpdateHRNColours` macro could be added as an option — deferred until the MEX team confirms macros are acceptable in their document workflow.

@@ -730,6 +730,55 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
             from docx.enum.text import WD_ALIGN_PARAGRAPH
             cell.paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
+    def set_cell_formula(cell, formula: str, fallback: str, bold: bool = False,
+                         size: int = 9, colour: RGBColor = None, bg_hex: str = None):
+        """Insert a Word calculation field (=FORMULA) into a cell so the value recalculates."""
+        from docx.oxml import parse_xml
+        from docx.oxml.ns import nsmap
+        w_ns = nsmap["w"]
+        sz = size * 2
+        if bg_hex:
+            shading = parse_xml(
+                f'<w:shd xmlns:w="{w_ns}" w:val="clear" w:color="auto" w:fill="{bg_hex}"/>'
+            )
+            cell._tc.get_or_add_tcPr().append(shading)
+        cell.text = ""
+        p = cell.paragraphs[0]
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        b_tag = "<w:b/>" if bold else ""
+        col_tag = ""
+        if colour:
+            col_hex = "%02X%02X%02X" % (colour.red, colour.green, colour.blue)
+            col_tag = f'<w:color w:val="{col_hex}"/>'
+
+        def _rpr():
+            return f"<w:rPr>{b_tag}<w:sz w:val=\"{sz}\"/>{col_tag}</w:rPr>"
+
+        def _fld(fld_type: str):
+            return parse_xml(
+                f'<w:r xmlns:w="{w_ns}">{_rpr()}'
+                f'<w:fldChar w:fldCharType="{fld_type}"/></w:r>'
+            )
+
+        def _instr(text: str):
+            return parse_xml(
+                f'<w:r xmlns:w="{w_ns}">{_rpr()}'
+                f'<w:instrText xml:space="preserve" xmlns:w="{w_ns}"> {text} </w:instrText></w:r>'
+            )
+
+        def _cached(text: str):
+            return parse_xml(
+                f'<w:r xmlns:w="{w_ns}">{_rpr()}<w:t>{text}</w:t></w:r>'
+            )
+
+        p._p.append(_fld("begin"))
+        p._p.append(_instr(formula))
+        p._p.append(_fld("separate"))
+        p._p.append(_cached(fallback))
+        p._p.append(_fld("end"))
+
     b = request.project_brief
 
     # ── Cover ─────────────────────────────────────────────────────────────────
@@ -772,17 +821,46 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
         detail = doc.add_table(rows=4, cols=7)
         detail.style = "Table Grid"
 
-        # Fix column widths — set on every cell before any merges happen
-        # Mirrors the PDF ratios scaled to ~163 mm DOCX content width
-        _col_mm = [44, 68, 9, 9, 9, 9, 15]
-        for _row in detail.rows:
-            for _ci, _w in enumerate(_col_mm):
-                _row.cells[_ci].width = Inches(_w / 25.4)
-        # Lock layout so Word doesn't auto-resize
+        # Fix column widths via XML — tblW + tblGrid + tblLayout (fixed)
+        # This is the reliable path; cell.width alone doesn't stick after merges
         from docx.oxml import parse_xml as _px
-        from docx.oxml.ns import nsmap as _nsmap
+        from docx.oxml.ns import nsmap as _nsmap, qn as _qn
+        _col_mm = [44, 68, 9, 9, 9, 9, 15]
+        _col_tw = [round(w * 1440 / 25.4) for w in _col_mm]  # mm → twips
+        _total_tw = sum(_col_tw)
         _wns = _nsmap["w"]
-        detail._tbl.tblPr.append(_px(f'<w:tblLayout xmlns:w="{_wns}" w:type="fixed"/>'))
+
+        # tblW — total table width
+        _tblPr = detail._tbl.tblPr
+        for _el in _tblPr.findall(_qn("w:tblW")):
+            _tblPr.remove(_el)
+        _tblPr.append(_px(f'<w:tblW xmlns:w="{_wns}" w:w="{_total_tw}" w:type="dxa"/>'))
+
+        # tblLayout fixed
+        for _el in _tblPr.findall(_qn("w:tblLayout")):
+            _tblPr.remove(_el)
+        _tblPr.append(_px(f'<w:tblLayout xmlns:w="{_wns}" w:type="fixed"/>'))
+
+        # tblGrid — one gridCol per column; must sit right after tblPr
+        _existing_grid = detail._tbl.find(_qn("w:tblGrid"))
+        if _existing_grid is not None:
+            detail._tbl.remove(_existing_grid)
+        _grid_xml = (
+            f'<w:tblGrid xmlns:w="{_wns}">'
+            + "".join(f'<w:gridCol w:w="{tw}"/>' for tw in _col_tw)
+            + "</w:tblGrid>"
+        )
+        _tblPr_idx = list(detail._tbl).index(_tblPr)
+        detail._tbl.insert(_tblPr_idx + 1, _px(_grid_xml))
+
+        # tcW on every cell in every row (set before any merges)
+        for _row in detail.rows:
+            for _ci, _tw in enumerate(_col_tw):
+                _tc = _row.cells[_ci]._tc
+                _tcPr = _tc.get_or_add_tcPr()
+                for _el in _tcPr.findall(_qn("w:tcW")):
+                    _tcPr.remove(_el)
+                _tcPr.append(_px(f'<w:tcW xmlns:w="{_wns}" w:w="{_tw}" w:type="dxa"/>'))
 
         # Row 0: "Mode: {mode}" spanning all 7 columns
         r0 = detail.rows[0]
@@ -804,19 +882,24 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
             set_cell(r2.cells[i], hdr, bold=True, size=8,
                      bg_hex=NAVY_HEX, colour=WHITE_RGB, center=(i >= 2))
 
-        # Row 3: Before-mitigation data
+        # Row 3: Before-mitigation data (Word row 4 — 1-indexed)
         r3 = detail.rows[3]
         hrn = h.hrn_before
         band = h.risk_band_before
         band_hex = BAND_BG_HEX.get(band, "CCCCCC")
         hz_types = "; ".join(h.hazard_types) if h.hazard_types else "—"
         data_vals = [h.task, hz_types,
-                     str(hrn.LO), str(hrn.FE), str(hrn.DPH), str(hrn.NP),
-                     str(h.hrn_score_before)]
+                     str(hrn.LO), str(hrn.FE), str(hrn.DPH), str(hrn.NP)]
         for i, val in enumerate(data_vals):
-            set_cell(r3.cells[i], val, size=8,
-                     bg_hex=(band_hex if i == 6 else None),
-                     center=(i >= 2))
+            set_cell(r3.cells[i], val, size=8, center=(i >= 2))
+        # HRN cell (col G, Word row 4): dynamic formula
+        set_cell_formula(
+            r3.cells[6],
+            formula="=C4*D4*E4*F4",
+            fallback=str(h.hrn_score_before),
+            bold=True, size=8,
+            bg_hex=band_hex,
+        )
 
         # Rows 4-5: Risk Reduction if present
         has_rr = bool(h.risk_reduction_measures) or (h.hrn_after and h.hrn_score_after is not None)
@@ -835,17 +918,23 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
             if h.hrn_after and h.hrn_score_after is not None:
                 ab_hex = BAND_BG_HEX.get(h.risk_band_after or "", "CCCCCC")
 
-                # Row 5: risk reduction text (cols 0-1) + new HRN values
+                # Row 5: risk reduction text (cols 0-1) + new HRN values (Word row 6)
                 rr_data = detail.add_row()
                 rr_data.cells[0].merge(rr_data.cells[1])
                 set_cell(rr_data.cells[0], rr_text, size=8, bg_hex=RR_GREEN_HEX)
                 new_vals = [str(h.hrn_after.LO), str(h.hrn_after.FE),
-                            str(h.hrn_after.DPH), str(h.hrn_after.NP),
-                            str(h.hrn_score_after)]
+                            str(h.hrn_after.DPH), str(h.hrn_after.NP)]
                 for i, val in enumerate(new_vals):
                     set_cell(rr_data.cells[i + 2], val, size=8,
-                             bg_hex=(ab_hex if i == 4 else RR_GREEN_HEX),
-                             center=True)
+                             bg_hex=RR_GREEN_HEX, center=True)
+                # HRN cell (col G, Word row 6): dynamic formula
+                set_cell_formula(
+                    rr_data.cells[6],
+                    formula="=C6*D6*E6*F6",
+                    fallback=str(h.hrn_score_after),
+                    bold=True, size=8,
+                    bg_hex=ab_hex,
+                )
             else:
                 # Risk reduction noted but no after-HRN yet
                 rr_data = detail.add_row()

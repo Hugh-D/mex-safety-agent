@@ -10,8 +10,48 @@
     "standards_applicable": [],
     "lifecycle_exclusions": []
   },
-  "hazards": [],
+  "hazards": [
+    {
+      "id": "H01",
+      "location": "Infeed nip point — east side",
+      "mode": "Maintenance",
+      "task": "Clearing jammed material from conveyor belt",
+      "hazard_types": [
+        "Crushing",
+        "Entanglement"
+      ],
+      "photos": [],
+      "voice_notes": [],
+      "typed_notes": "Operator reaches into nip zone with no guarding. Conveyor runs at 0.5 m/s. LO=Possible as jam events occur monthly. DPH=Major fracture given nip gap of ~15mm.",
+      "hrn_before": {
+        "LO": 2.0,
+        "FE": 1.0,
+        "DPH": 2.0,
+        "NP": 1.0
+      },
+      "hrn_score_before": 4.0,
+      "risk_band_before": "Needs Review",
+      "risk_reduction_measures": [
+        "Install fixed guarding at infeed nip point",
+        "Add presence-sensing mat in access zone",
+        "Implement LOTO procedure for jam clearing"
+      ],
+      "standards_references": [],
+      "hrn_after": {
+        "LO": 1.0,
+        "FE": 1.0,
+        "DPH": 2.0,
+        "NP": 1.0
+      },
+      "hrn_score_after": 2.0,
+      "risk_band_after": "Very Low",
+      "ai_validation_flags": [],
+      "ai_recommendations": [],
+      "ai_logs": [],
+      "photo_data": "data:image/jpeg;base64,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"
+    }
+  ],
   "created_at": "2026-05-13T00:34:22.820000Z",
-  "updated_at": "2026-05-13T00:34:22.827098",
+  "updated_at": "2026-05-26T04:48:40.411016",
   "status": "draft"
 }
