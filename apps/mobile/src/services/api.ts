@@ -11,6 +11,11 @@ import type {
 export const API_BASE =
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api"
 
+function authHeader(): Record<string, string> {
+  const key = process.env.EXPO_PUBLIC_API_KEY
+  return key ? { "X-API-Key": key } : {}
+}
+
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
@@ -28,7 +33,7 @@ function fetchWithTimeout(url: string, options?: RequestInit, timeoutMs = TIMEOU
 async function requestJSON<T>(path: string, body: unknown, timeoutMs = TIMEOUT_MS): Promise<T> {
   const response = await fetchWithTimeout(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader() },
     body: JSON.stringify(body),
   }, timeoutMs)
   if (!response.ok) {
@@ -39,7 +44,7 @@ async function requestJSON<T>(path: string, body: unknown, timeoutMs = TIMEOUT_M
 }
 
 async function getJSON<T>(path: string): Promise<T> {
-  const response = await fetchWithTimeout(`${API_BASE}${path}`)
+  const response = await fetchWithTimeout(`${API_BASE}${path}`, { headers: authHeader() })
   if (!response.ok) throw new Error(`API error: ${response.statusText}`)
   return response.json()
 }
@@ -68,7 +73,7 @@ export async function saveProject(project: AssessmentProject): Promise<Assessmen
 }
 
 export async function generateProjectReport(projectNumber: string): Promise<Blob> {
-  const response = await fetch(`${API_BASE}/report/project/${encodeURIComponent(projectNumber)}`)
+  const response = await fetch(`${API_BASE}/report/project/${encodeURIComponent(projectNumber)}`, { headers: authHeader() })
   if (!response.ok) throw new Error(`Failed to generate report: ${response.statusText}`)
   return response.blob()
 }
@@ -143,7 +148,7 @@ export async function analysePhoto(
   if (equipmentRef) formData.append("equipment_ref", equipmentRef)
 
   // POST to /ai/photo/start — returns immediately with a job_id (no timeout: upload may take a few seconds)
-  const startResp = await fetch(`${API_BASE}/ai/photo/start`, { method: "POST", body: formData })
+  const startResp = await fetch(`${API_BASE}/ai/photo/start`, { method: "POST", headers: authHeader(), body: formData })
   if (!startResp.ok) throw new Error(`Photo upload failed: ${startResp.statusText}`)
   const { job_id } = await startResp.json()
 
@@ -151,7 +156,7 @@ export async function analysePhoto(
   const deadline = Date.now() + 120_000
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 3000))
-    const pollResp = await fetchWithTimeout(`${API_BASE}/ai/photo/${job_id}`)
+    const pollResp = await fetchWithTimeout(`${API_BASE}/ai/photo/${job_id}`, { headers: authHeader() })
     if (!pollResp.ok) throw new Error(`Poll failed: ${pollResp.statusText}`)
     const job = await pollResp.json()
     if (job.status === "complete") { const raw = job.result; return {
@@ -216,14 +221,14 @@ export async function transcribeVoice(
 
   formData.append("site_label", siteLabel)
 
-  const startResp = await fetchWithTimeout(`${API_BASE}/ai/voice/start`, { method: "POST", body: formData })
+  const startResp = await fetchWithTimeout(`${API_BASE}/ai/voice/start`, { method: "POST", headers: authHeader(), body: formData })
   if (!startResp.ok) throw new Error(`Voice upload failed: ${startResp.statusText}`)
   const { job_id } = await startResp.json()
 
   const deadline = Date.now() + 120_000
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 3000))
-    const pollResp = await fetchWithTimeout(`${API_BASE}/ai/voice/${job_id}`)
+    const pollResp = await fetchWithTimeout(`${API_BASE}/ai/voice/${job_id}`, { headers: authHeader() })
     if (!pollResp.ok) throw new Error(`Poll failed: ${pollResp.statusText}`)
     const job = await pollResp.json()
     if (job.status === "complete") {

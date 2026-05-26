@@ -11,6 +11,11 @@ import type {
 const API_BASE = "http://localhost:8000/api"
 export const PHOTO_BASE = "http://localhost:8000"
 
+function authHeader(): Record<string, string> {
+  const key = import.meta.env.VITE_API_KEY as string | undefined
+  return key ? { "X-API-Key": key } : {}
+}
+
 async function throwWithDetail(response: Response, prefix: string): Promise<never> {
   let detail = response.statusText
   try {
@@ -23,7 +28,7 @@ async function throwWithDetail(response: Response, prefix: string): Promise<neve
 async function requestJSON<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader() },
     body: JSON.stringify(body),
   })
   if (!response.ok) await throwWithDetail(response, "API request failed")
@@ -31,7 +36,7 @@ async function requestJSON<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function getJSON<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`)
+  const response = await fetch(`${API_BASE}${path}`, { headers: authHeader() })
   if (!response.ok) await throwWithDetail(response, "API request failed")
   return response.json()
 }
@@ -47,7 +52,7 @@ export async function determinePLR(request: PLRRequest): Promise<PLRResultRespon
 export async function generateDraftReport(request: ReportDraftRequest): Promise<Blob> {
   const response = await fetch(`${API_BASE}/report/draft`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader() },
     body: JSON.stringify(request),
   })
   if (!response.ok) {
@@ -86,14 +91,14 @@ export async function analysePhoto(file: File, siteLabel: string): Promise<Photo
   formData.append("file", file)
   formData.append("site_label", siteLabel)
 
-  const startResp = await fetch(`${API_BASE}/ai/photo/start`, { method: "POST", body: formData })
+  const startResp = await fetch(`${API_BASE}/ai/photo/start`, { method: "POST", headers: authHeader(), body: formData })
   if (!startResp.ok) throw new Error(`Photo upload failed: ${startResp.statusText}`)
   const { job_id } = await startResp.json()
 
   const deadline = Date.now() + 120_000
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 3000))
-    const pollResp = await fetch(`${API_BASE}/ai/photo/${job_id}`)
+    const pollResp = await fetch(`${API_BASE}/ai/photo/${job_id}`, { headers: authHeader() })
     if (!pollResp.ok) throw new Error(`Poll failed: ${pollResp.statusText}`)
     const job = await pollResp.json()
     if (job.status === "complete") {
@@ -167,7 +172,7 @@ export async function uploadHazardPhoto(
   formData.append("hazard_id", hazardId)
   const response = await fetch(
     `${API_BASE}/assessment/project/${encodeURIComponent(projectNumber)}/photo`,
-    { method: "POST", body: formData },
+    { method: "POST", headers: authHeader(), body: formData },
   )
   if (!response.ok) await throwWithDetail(response, "Photo upload failed")
   return response.json()
@@ -182,7 +187,7 @@ export async function listProjects(): Promise<ProjectListResponse> {
 }
 
 export async function generateProjectReport(projectNumber: string, format: "pdf" | "docx" = "pdf"): Promise<Blob> {
-  const response = await fetch(`${API_BASE}/report/project/${encodeURIComponent(projectNumber)}?format=${format}`)
+  const response = await fetch(`${API_BASE}/report/project/${encodeURIComponent(projectNumber)}?format=${format}`, { headers: authHeader() })
   if (!response.ok) {
     throw new Error(`Failed to generate report: ${response.statusText}`)
   }
@@ -257,7 +262,7 @@ export async function reviewDesignDocument(
 export async function extractDocumentText(file: File): Promise<string> {
   const formData = new FormData()
   formData.append("file", file)
-  const response = await fetch(`${API_BASE}/compliance/extract-text`, { method: "POST", body: formData })
+  const response = await fetch(`${API_BASE}/compliance/extract-text`, { method: "POST", headers: authHeader(), body: formData })
   if (!response.ok) throw new Error(`Text extraction failed: ${response.statusText}`)
   const data = await response.json()
   return data.text
@@ -279,7 +284,7 @@ export async function analyseDrawing(
   if (context) formData.append("context", context)
   if (dxfFile) formData.append("dxf_file", dxfFile)
 
-  const response = await fetch(`${API_BASE}/compliance/drawing`, { method: "POST", body: formData })
+  const response = await fetch(`${API_BASE}/compliance/drawing`, { method: "POST", headers: authHeader(), body: formData })
   if (!response.ok) await throwWithDetail(response, "Drawing analysis failed")
   return response.json()
 }
@@ -311,7 +316,7 @@ export interface DxfParseResponse {
 export async function parseDxf(file: File): Promise<DxfParseResponse> {
   const formData = new FormData()
   formData.append("file", file)
-  const response = await fetch(`${API_BASE}/compliance/dxf`, { method: "POST", body: formData })
+  const response = await fetch(`${API_BASE}/compliance/dxf`, { method: "POST", headers: authHeader(), body: formData })
   if (!response.ok) await throwWithDetail(response, "DXF parse failed")
   return response.json()
 }
@@ -325,7 +330,7 @@ export async function downloadComplianceReport(
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/compliance/report`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader() },
     body: JSON.stringify({
       drawingTitle,
       targetPl,
