@@ -383,7 +383,9 @@ def _section_hazards(hazards: List[HazardEntry], s: dict) -> list:
 
     # 7 columns: Task | Hazard | LO | FE | DPH | NP | HRN
     # Total = 174 mm (A4 210 mm − 2 × 18 mm margins)
-    col_w = [40 * mm, 60 * mm, 12 * mm, 12 * mm, 12 * mm, 12 * mm, 26 * mm]
+    # Task and Hazard get most of the width; number cols kept minimal
+    # Total = 174 mm (A4 210 mm − 2 × 18 mm margins)
+    col_w = [46 * mm, 72 * mm, 10 * mm, 10 * mm, 10 * mm, 10 * mm, 16 * mm]
 
     RR_GREEN = colors.HexColor("#e8f5e1")
 
@@ -439,6 +441,9 @@ def _section_hazards(hazards: List[HazardEntry], s: dict) -> list:
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            # Tighter padding on number columns so values like "0.033" fit
+            ("LEFTPADDING", (2, 0), (6, -1), 2),
+            ("RIGHTPADDING", (2, 0), (6, -1), 2),
             ("FONTSIZE", (0, 0), (-1, -1), 8),
             # Row 0 — Mode title
             ("SPAN", (0, 0), (6, 0)),
@@ -766,6 +771,18 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
         # 7-column table matching the MEX report layout
         detail = doc.add_table(rows=4, cols=7)
         detail.style = "Table Grid"
+
+        # Fix column widths — set on every cell before any merges happen
+        # Mirrors the PDF ratios scaled to ~163 mm DOCX content width
+        _col_mm = [44, 68, 9, 9, 9, 9, 15]
+        for _row in detail.rows:
+            for _ci, _w in enumerate(_col_mm):
+                _row.cells[_ci].width = Inches(_w / 25.4)
+        # Lock layout so Word doesn't auto-resize
+        from docx.oxml import parse_xml as _px
+        from docx.oxml.ns import nsmap as _nsmap
+        _wns = _nsmap["w"]
+        detail._tbl.tblPr.append(_px(f'<w:tblLayout xmlns:w="{_wns}" w:type="fixed"/>'))
 
         # Row 0: "Mode: {mode}" spanning all 7 columns
         r0 = detail.rows[0]
