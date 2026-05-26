@@ -699,6 +699,7 @@ nav button.active {
 .pv-edit-btn:disabled { opacity: 0.4; cursor: default; }
 .pv-risk-badge { font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; }
 .pv-hazard-detail { font-size: 0.9rem; margin-bottom: 4px; }
+.pv-hazard-photo-thumb { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; }
 .pv-hazard-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pv-chip { background: #f0f4ff; color: #002559; font-size: 0.78rem; padding: 3px 8px; border-radius: 4px; }
 .empty-state { color: #8a9ab0; font-style: italic; margin: 0; }

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from routers.assessment import router as assessment_router
 from routers.project import router as project_router
 from routers.report import router as report_router
@@ -42,6 +43,9 @@ app.include_router(project_router, prefix="/api", tags=["project"])
 app.include_router(report_router, prefix="/api", tags=["report"])
 app.include_router(claude_router, prefix="/api", tags=["ai"])
 app.include_router(compliance_router, prefix="/api", tags=["compliance"])
+
+from services.project_store import PHOTOS_DIR  # noqa: E402
+app.mount("/photos", StaticFiles(directory=str(PHOTOS_DIR)), name="photos")
 
 
 @app.get("/", tags=["health"])

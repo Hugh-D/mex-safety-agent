@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
-import type { AssessmentProject, HazardEntry, HRNParameters } from "@shared/types/assessment"
-import { saveProject, analysePhoto, validateHrnAI, generateProjectReport } from "../services/api"
+import type { AssessmentProject, HazardEntry, HRNParameters, PhotoEntry } from "@shared/types/assessment"
+import { saveProject, analysePhoto, validateHrnAI, generateProjectReport, uploadHazardPhoto, PHOTO_BASE } from "../services/api"
 import type { PhotoAnalysisResult, HRNValidationResult } from "../services/api"
 
 const HRN_PARAMS = {
@@ -120,7 +120,8 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     setHazardTypes([...h.hazardTypes])
     setHrn({ LO: h.hrnBefore.LO, FE: h.hrnBefore.FE, DPH: h.hrnBefore.DPH, NP: h.hrnBefore.NP })
     const cachedPreview = photoCacheRef.current.get(h.id) ?? null
-    setPhotoFile(null); setPhotoPreview(cachedPreview); setAiResult(null); setValidation(null); setError(null)
+    const serverPreview = h.photos.length > 0 ? `${PHOTO_BASE}/photos/${h.photos[0].filepath}` : null
+    setPhotoFile(null); setPhotoPreview(cachedPreview ?? serverPreview); setAiResult(null); setValidation(null); setError(null)
     setEditingHazardIdx(idx)
     setShowForm(true)
   }
@@ -172,15 +173,24 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
         ) ?? []),
       ]
 
+      const projectNumber = project.projectBrief.projectNumber
       let updatedHazards: HazardEntry[]
+
       if (editingHazardIdx !== null) {
         const existing = project.hazards[editingHazardIdx]
+        let photos: PhotoEntry[] = existing.photos
+        if (photoFile) {
+          const { filepath } = await uploadHazardPhoto(projectNumber, existing.id, photoFile)
+          photos = [{ filepath, timestamp: new Date().toISOString(), siteLabel: location.trim(), annotations: [] }]
+          photoCacheRef.current.set(existing.id, `${PHOTO_BASE}/photos/${filepath}`)
+        }
         const edited: HazardEntry = {
           ...existing,
           location: location.trim(),
           mode,
           task: task.trim(),
           hazardTypes,
+          photos,
           hrnBefore: hrn,
           hrnScoreBefore: hrnScore,
           riskBandBefore: band.label,
@@ -189,13 +199,19 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
         updatedHazards = project.hazards.map((h, i) => i === editingHazardIdx ? edited : h)
       } else {
         const hazardId = `H${String(project.hazards.length + 1).padStart(2, "0")}`
+        let photos: PhotoEntry[] = []
+        if (photoFile) {
+          const { filepath } = await uploadHazardPhoto(projectNumber, hazardId, photoFile)
+          photos = [{ filepath, timestamp: new Date().toISOString(), siteLabel: location.trim(), annotations: [] }]
+          photoCacheRef.current.set(hazardId, `${PHOTO_BASE}/photos/${filepath}`)
+        }
         const newHazard: HazardEntry = {
           id: hazardId,
           location: location.trim(),
           mode,
           task: task.trim(),
           hazardTypes,
-          photos: [],
+          photos,
           voiceNotes: [],
           hrnBefore: hrn,
           hrnScoreBefore: hrnScore,
@@ -215,12 +231,6 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
       }
       await saveProject(updated)
       onProjectUpdate(updated)
-      if (photoPreview) {
-        const savedId = editingHazardIdx !== null
-          ? project.hazards[editingHazardIdx].id
-          : `H${String(project.hazards.length + 1).padStart(2, "0")}`
-        photoCacheRef.current.set(savedId, photoPreview)
-      }
       resetForm()
     } catch (e: any) {
       setError(e.message)
@@ -317,6 +327,13 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
                   Edit
                 </button>
               </div>
+              {h.photos.length > 0 && (
+                <img
+                  src={`${PHOTO_BASE}/photos/${h.photos[0].filepath}`}
+                  alt={`${h.id} site photo`}
+                  className="pv-hazard-photo-thumb"
+                />
+              )}
               <div className="pv-hazard-detail"><strong>Location:</strong> {h.location}</div>
               {h.mode && <div className="pv-hazard-detail"><strong>Mode:</strong> {h.mode}</div>}
               {h.task && <div className="pv-hazard-detail"><strong>Task:</strong> {h.task}</div>}

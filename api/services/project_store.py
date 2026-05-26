@@ -9,6 +9,8 @@ from models.schemas import AssessmentProject
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 PROJECTS_DIR = DATA_DIR / "projects"
 PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+PHOTOS_DIR = DATA_DIR / "projects" / "photos"
+PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Per-project locks prevent concurrent writes corrupting a JSON file.
 _locks: dict[str, threading.Lock] = {}

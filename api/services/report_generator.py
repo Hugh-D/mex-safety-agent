@@ -12,6 +12,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
+    Image as RLImage,
     NextPageTemplate,
     PageBreak,
     PageTemplate,
@@ -390,6 +391,21 @@ def _section_hazards(hazards: List[HazardEntry], s: dict) -> list:
         items.append(Paragraph(f"3.{h.id}  {h.location}", s["h3"]))
         if h.typed_notes:
             items.append(Paragraph(h.typed_notes, s["body"]))
+
+        if h.photos:
+            from services.project_store import PHOTOS_DIR
+            photo_path = PHOTOS_DIR / h.photos[0].filepath
+            if photo_path.exists():
+                try:
+                    img = RLImage(str(photo_path))
+                    max_w = PAGE_W - 2 * MARGIN
+                    max_h = 80 * mm
+                    scale = min(max_w / img.imageWidth, max_h / img.imageHeight)
+                    img.drawWidth = img.imageWidth * scale
+                    img.drawHeight = img.imageHeight * scale
+                    items += [img, _sp(3)]
+                except Exception:
+                    pass
 
         td = s["td"]
         tc = s["tdc"]

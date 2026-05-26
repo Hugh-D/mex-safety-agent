@@ -9,6 +9,7 @@ import type {
 } from "../../../../shared/types/assessment"
 
 const API_BASE = "http://localhost:8000/api"
+export const PHOTO_BASE = "http://localhost:8000"
 
 async function throwWithDetail(response: Response, prefix: string): Promise<never> {
   let detail = response.statusText
@@ -154,6 +155,22 @@ export async function validateHrnAI(
     flags: raw.flags ?? [],
     overallComment: raw.overall_comment,
   }
+}
+
+export async function uploadHazardPhoto(
+  projectNumber: string,
+  hazardId: string,
+  file: File,
+): Promise<{ filepath: string }> {
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("hazard_id", hazardId)
+  const response = await fetch(
+    `${API_BASE}/assessment/project/${encodeURIComponent(projectNumber)}/photo`,
+    { method: "POST", body: formData },
+  )
+  if (!response.ok) await throwWithDetail(response, "Photo upload failed")
+  return response.json()
 }
 
 export async function getProject(projectNumber: string): Promise<AssessmentProject> {
