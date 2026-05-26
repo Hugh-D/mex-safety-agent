@@ -3,7 +3,8 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 from models.schemas import AssessmentProject, ProjectListResponse
-from services.project_store import save_project, load_project, list_projects, PHOTOS_DIR
+from services.project_store import save_project, load_project, list_projects
+from services import storage
 
 router = APIRouter()
 
@@ -43,13 +44,12 @@ async def upload_hazard_photo(
     file: UploadFile = File(...),
 ) -> dict:
     safe_proj = _safe_name(project_number)
-    photo_dir = PHOTOS_DIR / safe_proj / hazard_id
-    photo_dir.mkdir(parents=True, exist_ok=True)
-
     original = Path(file.filename or "photo.jpg").name
     safe_filename = "".join(c if c.isalnum() or c in "._-" else "_" for c in original)
     unique_name = f"{uuid4().hex[:8]}_{safe_filename}"
+    key = f"{safe_proj}/{hazard_id}/{unique_name}"
 
-    (photo_dir / unique_name).write_bytes(await file.read())
+    data = await file.read()
+    filepath = storage.upload_photo(data, key, filename=original)
 
-    return {"filepath": f"{safe_proj}/{hazard_id}/{unique_name}"}
+    return {"filepath": filepath}

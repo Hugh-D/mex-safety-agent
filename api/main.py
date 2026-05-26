@@ -61,7 +61,9 @@ app.include_router(claude_router, prefix="/api", tags=["ai"], dependencies=_auth
 app.include_router(compliance_router, prefix="/api", tags=["compliance"], dependencies=_auth)
 
 from services.project_store import PHOTOS_DIR  # noqa: E402
-app.mount("/photos", StaticFiles(directory=str(PHOTOS_DIR)), name="photos")
+from services.storage import spaces_enabled       # noqa: E402
+if not spaces_enabled():
+    app.mount("/photos", StaticFiles(directory=str(PHOTOS_DIR)), name="photos")
 
 
 @app.get("/", tags=["health"])
