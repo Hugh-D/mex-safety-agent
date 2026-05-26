@@ -380,75 +380,131 @@ def _section_hazards(hazards: List[HazardEntry], s: dict) -> list:
         items.append(Paragraph("No hazards recorded.", s["body"]))
         return items
 
-    tw = PAGE_W - 2 * MARGIN
-    col_w = [22 * mm, 30 * mm, 40 * mm, 10 * mm, 10 * mm, 10 * mm, 10 * mm, 14 * mm, tw - 146 * mm]
+    # 7 columns: Task | Hazard | LO | FE | DPH | NP | HRN
+    # Total = 174 mm (A4 210 mm − 2 × 18 mm margins)
+    col_w = [40 * mm, 60 * mm, 12 * mm, 12 * mm, 12 * mm, 12 * mm, 26 * mm]
+
+    RR_GREEN = colors.HexColor("#e8f5e1")
 
     for h in hazards:
         items.append(Paragraph(f"3.{h.id}  {h.location}", s["h3"]))
         if h.typed_notes:
             items.append(Paragraph(h.typed_notes, s["body"]))
 
-        th = s["th"]
         td = s["td"]
         tc = s["tdc"]
-        hdr = [Paragraph(x, th) for x in ["Mode", "Task", "Hazard Types", "LO", "FE", "DPH", "NP", "HRN", "Risk Band"]]
-        hazard_types_str = ", ".join(h.hazard_types) if h.hazard_types else "—"
-        row1 = [
-            Paragraph(h.mode, td),
-            Paragraph(h.task, td),
-            Paragraph(hazard_types_str, td),
-            Paragraph(str(h.hrn_before.LO), tc),
-            Paragraph(str(h.hrn_before.FE), tc),
-            Paragraph(str(h.hrn_before.DPH), tc),
-            Paragraph(str(h.hrn_before.NP), tc),
-            Paragraph(str(h.hrn_score_before), tc),
-            Paragraph(h.risk_band_before, tc),
-        ]
+        th = s["th"]
 
         band_bg = BAND_COLOURS.get(h.risk_band_before, MID_GREY)
         band_txt = BLACK if h.risk_band_before in LIGHT_BANDS else WHITE
+        hazard_str = "; ".join(h.hazard_types) if h.hazard_types else "—"
+
+        table_data = [
+            # Row 0: Mode title (spans all 7 cols)
+            [Paragraph(f"Mode: {h.mode}", th), "", "", "", "", "", ""],
+            # Row 1: blank left (cols 0-1) | "Risk Estimation" right (cols 2-6)
+            ["", "", Paragraph("Risk Estimation", th), "", "", "", ""],
+            # Row 2: Column headers
+            [Paragraph("Task", th), Paragraph("Hazard", th),
+             Paragraph("LO", th), Paragraph("FE", th),
+             Paragraph("DPH", th), Paragraph("NP", th), Paragraph("HRN", th)],
+            # Row 3: Before-mitigation data
+            [Paragraph(h.task, td), Paragraph(hazard_str, td),
+             Paragraph(str(h.hrn_before.LO), tc), Paragraph(str(h.hrn_before.FE), tc),
+             Paragraph(str(h.hrn_before.DPH), tc), Paragraph(str(h.hrn_before.NP), tc),
+             Paragraph(str(h.hrn_score_before), tc)],
+        ]
 
         cmds = [
-            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+            # Global
             ("GRID", (0, 0), (-1, -1), 0.3, MID_GREY),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("BACKGROUND", (7, 1), (8, 1), band_bg),
-            ("TEXTCOLOR", (7, 1), (8, 1), band_txt),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            # Row 0 — Mode title
+            ("SPAN", (0, 0), (6, 0)),
+            ("BACKGROUND", (0, 0), (6, 0), NAVY),
+            ("TEXTCOLOR", (0, 0), (6, 0), WHITE),
+            ("ALIGN", (0, 0), (6, 0), "CENTER"),
+            ("FONTNAME", (0, 0), (6, 0), "Helvetica-Bold"),
+            # Row 1 — Risk Estimation sub-header
+            ("SPAN", (0, 1), (1, 1)),
+            ("SPAN", (2, 1), (6, 1)),
+            ("BACKGROUND", (0, 1), (1, 1), WHITE),
+            ("BACKGROUND", (2, 1), (6, 1), NAVY),
+            ("TEXTCOLOR", (2, 1), (6, 1), WHITE),
+            ("ALIGN", (2, 1), (6, 1), "CENTER"),
+            ("FONTNAME", (0, 1), (6, 1), "Helvetica-Bold"),
+            # Row 2 — Column headers
+            ("BACKGROUND", (0, 2), (6, 2), NAVY),
+            ("TEXTCOLOR", (0, 2), (6, 2), WHITE),
+            ("ALIGN", (0, 2), (6, 2), "CENTER"),
+            ("FONTNAME", (0, 2), (6, 2), "Helvetica-Bold"),
+            # Row 3 — Data
+            ("FONTNAME", (0, 3), (6, 3), "Helvetica"),
+            ("ALIGN", (2, 3), (6, 3), "CENTER"),
+            ("BACKGROUND", (6, 3), (6, 3), band_bg),
+            ("TEXTCOLOR", (6, 3), (6, 3), band_txt),
+            ("FONTNAME", (6, 3), (6, 3), "Helvetica-Bold"),
         ]
-        table_data = [hdr, row1]
 
-        if h.risk_reduction_measures:
-            rr = "; ".join(h.risk_reduction_measures)
+        has_rr = bool(h.risk_reduction_measures) or (h.hrn_after and h.hrn_score_after is not None)
+        if has_rr:
+            rr_label_row = len(table_data)   # row 4
+            rr_data_row  = rr_label_row + 1  # row 5
+            rr_text = "; ".join(h.risk_reduction_measures) if h.risk_reduction_measures else "—"
+
+            # Row 4: "Risk Reduction" (left) | "New Risk Estimation" (right, navy header)
             table_data.append([
-                Paragraph("<b>Risk Reduction</b>", td),
-                Paragraph(rr, td),
-                "", "", "", "", "", "", "",
+                Paragraph("Risk Reduction", td), "",
+                Paragraph("New Risk Estimation", th), "", "", "", "",
             ])
             cmds += [
-                ("SPAN", (1, 2), (8, 2)),
-                ("BACKGROUND", (0, 2), (-1, 2), colors.HexColor("#e8f5e1")),
+                ("SPAN", (0, rr_label_row), (1, rr_label_row)),
+                ("SPAN", (2, rr_label_row), (6, rr_label_row)),
+                ("BACKGROUND", (0, rr_label_row), (1, rr_label_row), RR_GREEN),
+                ("TEXTCOLOR", (0, rr_label_row), (1, rr_label_row), NAVY),
+                ("FONTNAME", (0, rr_label_row), (6, rr_label_row), "Helvetica-Bold"),
+                ("BACKGROUND", (2, rr_label_row), (6, rr_label_row), NAVY),
+                ("TEXTCOLOR", (2, rr_label_row), (6, rr_label_row), WHITE),
+                ("ALIGN", (2, rr_label_row), (6, rr_label_row), "CENTER"),
             ]
 
-        if h.hrn_after and h.hrn_score_after is not None:
-            ab_bg = BAND_COLOURS.get(h.risk_band_after or "", MID_GREY)
-            ab_txt = BLACK if (h.risk_band_after or "") in LIGHT_BANDS else WHITE
-            ri = len(table_data)
-            table_data.append([
-                Paragraph("<b>After mitigation</b>", td),
-                Paragraph("Post-control HRN", td),
-                Paragraph("", td),
-                Paragraph(str(h.hrn_after.LO), tc),
-                Paragraph(str(h.hrn_after.FE), tc),
-                Paragraph(str(h.hrn_after.DPH), tc),
-                Paragraph(str(h.hrn_after.NP), tc),
-                Paragraph(str(h.hrn_score_after), tc),
-                Paragraph(h.risk_band_after or "—", tc),
-            ])
-            cmds += [("BACKGROUND", (7, ri), (8, ri), ab_bg), ("TEXTCOLOR", (7, ri), (8, ri), ab_txt)]
+            if h.hrn_after and h.hrn_score_after is not None:
+                ab_bg = BAND_COLOURS.get(h.risk_band_after or "", MID_GREY)
+                ab_txt = BLACK if (h.risk_band_after or "") in LIGHT_BANDS else WHITE
+
+                # Row 5: risk reduction text (spans cols 0-1) + new HRN values
+                table_data.append([
+                    Paragraph(rr_text, td), "",
+                    Paragraph(str(h.hrn_after.LO), tc),
+                    Paragraph(str(h.hrn_after.FE), tc),
+                    Paragraph(str(h.hrn_after.DPH), tc),
+                    Paragraph(str(h.hrn_after.NP), tc),
+                    Paragraph(str(h.hrn_score_after), tc),
+                ])
+                cmds += [
+                    ("SPAN", (0, rr_data_row), (1, rr_data_row)),
+                    ("BACKGROUND", (0, rr_data_row), (5, rr_data_row), RR_GREEN),
+                    ("BACKGROUND", (6, rr_data_row), (6, rr_data_row), ab_bg),
+                    ("TEXTCOLOR", (6, rr_data_row), (6, rr_data_row), ab_txt),
+                    ("FONTNAME", (6, rr_data_row), (6, rr_data_row), "Helvetica-Bold"),
+                    ("ALIGN", (2, rr_data_row), (6, rr_data_row), "CENTER"),
+                    ("FONTNAME", (0, rr_data_row), (1, rr_data_row), "Helvetica"),
+                ]
+            else:
+                # No after-HRN yet — just show the risk reduction text full-width
+                table_data.append([
+                    Paragraph(rr_text, td), "", "", "", "", "", "",
+                ])
+                cmds += [
+                    ("SPAN", (0, rr_data_row), (6, rr_data_row)),
+                    ("BACKGROUND", (0, rr_data_row), (6, rr_data_row), RR_GREEN),
+                    ("FONTNAME", (0, rr_data_row), (6, rr_data_row), "Helvetica"),
+                ]
 
         t = Table(table_data, colWidths=col_w)
         t.setStyle(TableStyle(cmds))
@@ -631,7 +687,7 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
         bottom.set(qn("w:color"), "70BF54")
 
     def set_cell(cell, text: str, bold: bool = False, size: int = 9,
-                 colour: RGBColor = None, bg_hex: str = None):
+                 colour: RGBColor = None, bg_hex: str = None, center: bool = False):
         cell.text = text
         r = cell.paragraphs[0].runs[0] if cell.paragraphs[0].runs else cell.paragraphs[0].add_run(text)
         if not cell.paragraphs[0].runs:
@@ -644,8 +700,14 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
         if bg_hex:
             from docx.oxml import parse_xml
             from docx.oxml.ns import nsmap
-            shading = parse_xml(f'<w:shd {qn("xmlns:w")}="{nsmap["w"]}" w:val="clear" w:color="auto" w:fill="{bg_hex}"/>')
+            w_ns = nsmap["w"]
+            shading = parse_xml(
+                f'<w:shd xmlns:w="{w_ns}" w:val="clear" w:color="auto" w:fill="{bg_hex}"/>'
+            )
             cell._tc.get_or_add_tcPr().append(shading)
+        if center:
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+            cell.paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     b = request.project_brief
 
@@ -676,37 +738,86 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
     h2(f"Risk Analysis — {len(request.hazards)} Hazard(s)")
     lime_rule()
 
+    WHITE_RGB = RGBColor(0xFF, 0xFF, 0xFF)
+    RR_GREEN_HEX = "E8F5E1"
+    NAVY_HEX = "002559"
+
     for h in request.hazards:
         h3(f"{h.id}  {h.location}")
         if h.typed_notes:
             body(h.typed_notes)
 
-        detail = doc.add_table(rows=2, cols=9)
+        # 7-column table matching the MEX report layout
+        detail = doc.add_table(rows=4, cols=7)
         detail.style = "Table Grid"
-        headers = ["Mode", "Task", "Hazard Types", "LO", "FE", "DPH", "NP", "HRN", "Risk Band"]
-        for i, hdr in enumerate(headers):
-            set_cell(detail.rows[0].cells[i], hdr, bold=True, colour=NAVY_RGB, size=8)
 
-        hz_types = ", ".join(h.hazard_types) if h.hazard_types else "—"
+        # Row 0: "Mode: {mode}" spanning all 7 columns
+        r0 = detail.rows[0]
+        r0.cells[0].merge(r0.cells[6])
+        set_cell(r0.cells[0], f"Mode: {h.mode}", bold=True, size=8,
+                 bg_hex=NAVY_HEX, colour=WHITE_RGB, center=True)
+
+        # Row 1: blank left (cols 0-1) | "Risk Estimation" right (cols 2-6)
+        r1 = detail.rows[1]
+        r1.cells[0].merge(r1.cells[1])
+        r1.cells[2].merge(r1.cells[6])
+        set_cell(r1.cells[0], "", size=8)
+        set_cell(r1.cells[2], "Risk Estimation", bold=True, size=8,
+                 bg_hex=NAVY_HEX, colour=WHITE_RGB, center=True)
+
+        # Row 2: Column headers
+        r2 = detail.rows[2]
+        for i, hdr in enumerate(["Task", "Hazard", "LO", "FE", "DPH", "NP", "HRN"]):
+            set_cell(r2.cells[i], hdr, bold=True, size=8,
+                     bg_hex=NAVY_HEX, colour=WHITE_RGB, center=(i >= 2))
+
+        # Row 3: Before-mitigation data
+        r3 = detail.rows[3]
         hrn = h.hrn_before
-        score = str(h.hrn_score_before)
         band = h.risk_band_before
-        bg = BAND_BG_HEX.get(band, "CCCCCC")
-        vals = [h.mode, h.task, hz_types,
-                str(hrn.LO), str(hrn.FE), str(hrn.DPH), str(hrn.NP),
-                score, band]
-        for i, val in enumerate(vals):
-            use_bg = bg if i >= 7 else None
-            set_cell(detail.rows[1].cells[i], val, size=8, bg_hex=use_bg)
+        band_hex = BAND_BG_HEX.get(band, "CCCCCC")
+        hz_types = "; ".join(h.hazard_types) if h.hazard_types else "—"
+        data_vals = [h.task, hz_types,
+                     str(hrn.LO), str(hrn.FE), str(hrn.DPH), str(hrn.NP),
+                     str(h.hrn_score_before)]
+        for i, val in enumerate(data_vals):
+            set_cell(r3.cells[i], val, size=8,
+                     bg_hex=(band_hex if i == 6 else None),
+                     center=(i >= 2))
 
-        if h.risk_reduction_measures:
-            row = detail.add_row()
-            set_cell(row.cells[0], "Risk Reduction", bold=True, size=8)
-            rr_cell = row.cells[1]
-            rr_cell.merge(row.cells[8])
-            rr_cell.text = "; ".join(h.risk_reduction_measures)
-            for r in rr_cell.paragraphs[0].runs:
-                r.font.size = Pt(8)
+        # Rows 4-5: Risk Reduction if present
+        has_rr = bool(h.risk_reduction_measures) or (h.hrn_after and h.hrn_score_after is not None)
+        if has_rr:
+            rr_text = "; ".join(h.risk_reduction_measures) if h.risk_reduction_measures else "—"
+
+            # Row 4: "Risk Reduction" | "New Risk Estimation"
+            rr_label = detail.add_row()
+            rr_label.cells[0].merge(rr_label.cells[1])
+            rr_label.cells[2].merge(rr_label.cells[6])
+            set_cell(rr_label.cells[0], "Risk Reduction", bold=True, size=8,
+                     bg_hex=RR_GREEN_HEX, colour=NAVY_RGB)
+            set_cell(rr_label.cells[2], "New Risk Estimation", bold=True, size=8,
+                     bg_hex=NAVY_HEX, colour=WHITE_RGB, center=True)
+
+            if h.hrn_after and h.hrn_score_after is not None:
+                ab_hex = BAND_BG_HEX.get(h.risk_band_after or "", "CCCCCC")
+
+                # Row 5: risk reduction text (cols 0-1) + new HRN values
+                rr_data = detail.add_row()
+                rr_data.cells[0].merge(rr_data.cells[1])
+                set_cell(rr_data.cells[0], rr_text, size=8, bg_hex=RR_GREEN_HEX)
+                new_vals = [str(h.hrn_after.LO), str(h.hrn_after.FE),
+                            str(h.hrn_after.DPH), str(h.hrn_after.NP),
+                            str(h.hrn_score_after)]
+                for i, val in enumerate(new_vals):
+                    set_cell(rr_data.cells[i + 2], val, size=8,
+                             bg_hex=(ab_hex if i == 4 else RR_GREEN_HEX),
+                             center=True)
+            else:
+                # Risk reduction noted but no after-HRN yet
+                rr_data = detail.add_row()
+                rr_data.cells[0].merge(rr_data.cells[6])
+                set_cell(rr_data.cells[0], rr_text, size=8, bg_hex=RR_GREEN_HEX)
 
         doc.add_paragraph()
 

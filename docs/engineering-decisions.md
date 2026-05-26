@@ -191,4 +191,40 @@ This file records every significant decision point built into the app — why it
 
 ---
 
-*Last updated: 2026-05-20. Add new entries as decisions are made during development.*
+## ED-013 — Offline Capability: What Works Without a Signal
+
+**Context:** Engineers use the app on industrial sites where mobile signal is unreliable or absent. This entry documents exactly what the app can and cannot do without connectivity, so engineers know what to expect and how to plan their workflow.
+
+---
+
+**What the engineer can do fully offline (no network required):**
+- Create a new project and fill in site/machine details
+- Capture photos — the camera is local; images are stored on the device
+- Record voice notes — the microphone is local; audio is stored on the device
+- Enter mode, task, hazard types, and typed notes manually
+- Score HRN — LO × FE × DPH × NP is calculated on-device
+- Get the risk band from the HRN score — this lookup is also on-device
+- Save hazard entries — data is held in the app session while it remains open
+
+**What queues until connectivity is restored:**
+- AI photo analysis — the app will submit the photo to Claude once signal returns; until then, hazard types, mode, task, and HRN suggestions are blank and must be filled manually
+- Voice transcription — audio is stored locally; the transcription and field extraction run when the server is reachable
+- AI HRN validation — the "Validate HRN with AI" step requires the server; the engineer can still set HRN values manually
+- Risk reduction recommendations — AI-generated; queued until connected
+- Syncing project data to the server — local saves are pushed when connectivity returns
+
+**What requires connectivity to complete:**
+- PDF and Word report generation — this runs on the server; the engineer cannot produce a final report until the device has a working connection and all data has synced
+- Viewing projects on a second device or via the web — server sync must complete first
+
+---
+
+**How engineers should respond in the field:**
+- If signal is lost mid-assessment: continue capturing photos, recording voice notes, and entering HRN values manually. The math works without the network.
+- Use the Notes field to record observations you would normally rely on AI analysis for — you can run AI validation retrospectively once you have signal (e.g. back at the vehicle or office).
+- Do not close the app until all data has saved and synced, or you risk losing unsaved entries.
+- Generate the PDF report after returning to a reliable connection, not on site.
+
+---
+
+*Last updated: 2026-05-22. Add new entries as decisions are made during development.*
