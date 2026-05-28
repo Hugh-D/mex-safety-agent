@@ -23,8 +23,8 @@ One-time setup on DigitalOcean. Takes ~30 minutes.
 6. Save the **Key** and **Secret** — you won't see the secret again
 
 ### Domain
-Point `safety.mexeng.com.au` at the Droplet IP:
-- Add an **A record**: `safety` → `<droplet-ip>`
+Point `cmse.mexeng.com.au` at the Droplet IP:
+- Add an **A record**: `cmse` → `<droplet-ip>`
 - Wait ~5 minutes for DNS to propagate
 
 ---
@@ -68,7 +68,7 @@ SPACES_SECRET=<your-spaces-secret>
 SPACES_BUCKET=mex-safety-photos
 SPACES_REGION=syd1
 SPACES_ENDPOINT=https://syd1.digitaloceanspaces.com
-CORS_ORIGINS=https://safety.mexeng.com.au
+CORS_ORIGINS=https://cmse.mexeng.com.au
 ```
 
 ---
@@ -84,7 +84,7 @@ docker compose up -d nginx certbot
 
 docker compose run --rm certbot certonly \
   --webroot -w /var/www/certbot \
-  -d safety.mexeng.com.au \
+  -d cmse.mexeng.com.au \
   --email hugh@mexeng.com.au \
   --agree-tos --no-eff-email
 ```
@@ -108,7 +108,7 @@ Check all containers are running:
 docker compose ps
 ```
 
-Open `https://safety.mexeng.com.au` — you should see the key entry screen.
+Open `https://cmse.mexeng.com.au` — you should see the key entry screen.
 
 ---
 
