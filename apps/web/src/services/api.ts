@@ -8,8 +8,8 @@ import type {
   ProjectListResponse,
 } from "../../../../shared/types/assessment"
 
-const API_BASE = "http://localhost:8000/api"
-export const PHOTO_BASE = "http://localhost:8000"
+const API_BASE = "/api"
+export const PHOTO_BASE = ""
 
 function authHeader(): Record<string, string> {
   const key =
