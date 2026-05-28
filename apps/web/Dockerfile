@@ -7,7 +7,7 @@ COPY shared /shared
 
 # Install deps
 COPY apps/web/package*.json ./
-RUN npm ci
+RUN npm install
 
 # Build (VITE_API_KEY not needed — key is entered at runtime via browser)
 COPY apps/web .
