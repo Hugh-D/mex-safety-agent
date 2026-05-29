@@ -49,7 +49,8 @@ def upload_photo(data: bytes, key: str, filename: str = "photo.jpg") -> str:
             Key=key,
             ACL="public-read",
         )
-        return f"{_SPACES_ENDPOINT}/{_SPACES_BUCKET}/{key}"
+        # Subdomain-style URL required for public access; path-style requires auth.
+        return f"https://{_SPACES_BUCKET}.{_SPACES_REGION}.digitaloceanspaces.com/{key}"
 
     # Local fallback — write to PHOTOS_DIR and return the relative filepath
     from services.project_store import PHOTOS_DIR

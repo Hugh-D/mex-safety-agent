@@ -32,7 +32,7 @@ def get_project_list() -> dict:
 
 def _safe_name(project_number: str) -> str:
     name = project_number
-    for ch in '/\\<>:"|?*':
+    for ch in '/\\<>:"|?*# ':
         name = name.replace(ch, "_")
     return name.rstrip(". ") or "unnamed"
 

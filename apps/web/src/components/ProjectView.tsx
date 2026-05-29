@@ -78,9 +78,17 @@ const DEFAULT_HRN: HRNParameters = { LO: 2, FE: 2.5, DPH: 2, NP: 1 }
 
 function photoUrl(filepath: string): string {
   if (filepath.startsWith("http://") || filepath.startsWith("https://")) {
-    const url = new URL(filepath)
-    url.pathname = url.pathname.split("/").map(encodeURIComponent).join("/")
-    return url.toString()
+    // Avoid new URL() — '#' in project numbers (e.g. "J# 27010") is parsed as a
+    // fragment delimiter and truncates the pathname. Split manually instead.
+    const schemeEnd = filepath.indexOf("://") + 3
+    const scheme = filepath.slice(0, schemeEnd)
+    const rest = filepath.slice(schemeEnd)
+    const slashIdx = rest.indexOf("/")
+    if (slashIdx === -1) return filepath
+    const host = rest.slice(0, slashIdx)
+    const path = rest.slice(slashIdx + 1)
+    const encodedPath = path.split("/").map(encodeURIComponent).join("/")
+    return `${scheme}${host}/${encodedPath}`
   }
   return `${PHOTO_BASE}/photos/${filepath.split("/").map(encodeURIComponent).join("/")}`
 }
