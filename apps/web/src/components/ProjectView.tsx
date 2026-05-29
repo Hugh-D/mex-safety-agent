@@ -77,7 +77,11 @@ function getRiskBand(score: number): { label: string; bg: string; fg: string } {
 const DEFAULT_HRN: HRNParameters = { LO: 2, FE: 2.5, DPH: 2, NP: 1 }
 
 function photoUrl(filepath: string): string {
-  if (filepath.startsWith("http://") || filepath.startsWith("https://")) return filepath
+  if (filepath.startsWith("http://") || filepath.startsWith("https://")) {
+    const url = new URL(filepath)
+    url.pathname = url.pathname.split("/").map(encodeURIComponent).join("/")
+    return url.toString()
+  }
   return `${PHOTO_BASE}/photos/${filepath.split("/").map(encodeURIComponent).join("/")}`
 }
 
