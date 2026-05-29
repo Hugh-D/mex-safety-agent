@@ -33,11 +33,18 @@ def _load_photo(filepath: str) -> bytes | None:
     """Fetch photo bytes from a Spaces URL or local fallback path."""
     try:
         if filepath.startswith("http://") or filepath.startswith("https://"):
-            from urllib.parse import urlparse, quote, urlunparse
+            from urllib.parse import quote
             import urllib.request
-            parsed = urlparse(filepath)
-            encoded_path = "/".join(quote(seg, safe="") for seg in parsed.path.split("/"))
-            url = urlunparse(parsed._replace(path=encoded_path))
+            # Avoid urlparse — '#' in project numbers (e.g. "Live Test #3") is
+            # treated as a fragment delimiter and truncates the path.
+            scheme_end = filepath.index("://") + 3
+            scheme = filepath[:scheme_end]
+            rest = filepath[scheme_end:]
+            slash_idx = rest.index("/")
+            host = rest[:slash_idx]
+            path = rest[slash_idx + 1:]
+            encoded_path = "/".join(quote(seg, safe="") for seg in path.split("/"))
+            url = f"{scheme}{host}/{encoded_path}"
             with urllib.request.urlopen(url, timeout=10) as resp:
                 return resp.read()
         else:
