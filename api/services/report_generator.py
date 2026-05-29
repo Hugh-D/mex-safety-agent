@@ -29,6 +29,26 @@ import logging
 log = logging.getLogger(__name__)
 
 
+def _load_photo(filepath: str) -> bytes | None:
+    """Fetch photo bytes from a Spaces URL or local fallback path."""
+    try:
+        if filepath.startswith("http://") or filepath.startswith("https://"):
+            from urllib.parse import urlparse, quote, urlunparse
+            import urllib.request
+            parsed = urlparse(filepath)
+            encoded_path = "/".join(quote(seg, safe="") for seg in parsed.path.split("/"))
+            url = urlunparse(parsed._replace(path=encoded_path))
+            with urllib.request.urlopen(url, timeout=10) as resp:
+                return resp.read()
+        else:
+            from services.project_store import PHOTOS_DIR
+            p = PHOTOS_DIR / filepath
+            return p.read_bytes() if p.exists() else None
+    except Exception as exc:
+        log.warning("Could not load photo %s: %s", filepath, exc)
+        return None
+
+
 def _audit_complete() -> bool:
     """Return True only when AUDIT_COMPLETE env var is explicitly set to a truthy value."""
     return os.environ.get("AUDIT_COMPLETE", "").strip().lower() in ("1", "true", "yes")
@@ -395,11 +415,10 @@ def _section_hazards(hazards: List[HazardEntry], s: dict) -> list:
             items.append(Paragraph(h.typed_notes, s["body"]))
 
         if h.photos:
-            from services.project_store import PHOTOS_DIR
-            photo_path = PHOTOS_DIR / h.photos[0].filepath
-            if photo_path.exists():
+            img_bytes = _load_photo(h.photos[0].filepath)
+            if img_bytes:
                 try:
-                    img = RLImage(str(photo_path))
+                    img = RLImage(BytesIO(img_bytes))
                     max_w = PAGE_W - 2 * MARGIN
                     max_h = 80 * mm
                     scale = min(max_w / img.imageWidth, max_h / img.imageHeight)
@@ -816,6 +835,15 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
         h3(f"{h.id}  {h.location}")
         if h.typed_notes:
             body(h.typed_notes)
+
+        if h.photos:
+            img_bytes = _load_photo(h.photos[0].filepath)
+            if img_bytes:
+                try:
+                    doc.add_picture(BytesIO(img_bytes), width=Inches(5))
+                    doc.add_paragraph()
+                except Exception:
+                    pass
 
         # 7-column table matching the MEX report layout
         detail = doc.add_table(rows=4, cols=7)
