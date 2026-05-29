@@ -37,12 +37,17 @@ def upload_photo(data: bytes, key: str, filename: str = "photo.jpg") -> str:
     content_type = mimetypes.guess_type(filename)[0] or "image/jpeg"
 
     if _spaces_enabled:
-        _get_s3().put_object(
+        client = _get_s3()
+        client.put_object(
             Bucket=_SPACES_BUCKET,
             Key=key,
             Body=data,
-            ACL="public-read",
             ContentType=content_type,
+        )
+        client.put_object_acl(
+            Bucket=_SPACES_BUCKET,
+            Key=key,
+            ACL="public-read",
         )
         return f"{_SPACES_ENDPOINT}/{_SPACES_BUCKET}/{key}"
 
