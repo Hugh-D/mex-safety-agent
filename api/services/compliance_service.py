@@ -346,17 +346,58 @@ Return JSON only — no prose:
         return None
 
 
+_DOCX_IMAGE_MIME: dict[str, str] = {
+    ".png":  "image/png",
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif":  "image/gif",
+    ".webp": "image/webp",
+}
+
+
+def _extract_docx_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
+    """Extract embedded images from a DOCX (ZIP) file.
+
+    Returns list of (image_bytes, media_type) for formats Claude supports.
+    EMF/WMF/BMP (Windows-only metafiles) are skipped.
+    """
+    import zipfile as _zipfile
+    results: list[tuple[bytes, str]] = []
+    try:
+        with _zipfile.ZipFile(io.BytesIO(file_bytes)) as z:
+            for name in z.namelist():
+                if not name.startswith("word/media/"):
+                    continue
+                ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+                media_type = _DOCX_IMAGE_MIME.get(ext)
+                if media_type:
+                    results.append((z.read(name), media_type))
+    except Exception:
+        pass
+    return results
+
+
+def _extract_docx_text(file_bytes: bytes) -> str:
+    import docx as _docx
+    doc = _docx.Document(io.BytesIO(file_bytes))
+    return "\n".join(p.text for p in doc.paragraphs)
+
+
 def review_design_document(
     document_text: str,
     target_pl: str,
     target_category: str,
     ra_hazard_ids: list[str] | None = None,
+    file_bytes: bytes | None = None,
+    file_name: str = "",
 ) -> dict[str, Any]:
     """
-    Review a design/quote document (extracted text) for compliance completeness.
-    Checks that all RA risk reduction measures are addressed in the design.
+    Review a design/quote document for compliance completeness.
 
-    Returns a dict matching DesignReviewResult schema.
+    When file_bytes is provided:
+    - PDF  → sent as a Claude document block so both text and embedded images are visible.
+    - DOCX → text extracted + embedded images sent as separate image blocks.
+    - TXT / no file → document_text string used directly (capped at 120k chars).
     """
     client = _client()
 
@@ -364,47 +405,74 @@ def review_design_document(
     if ra_hazard_ids:
         hazard_context = f"\nRA hazard IDs to verify coverage for: {', '.join(ra_hazard_ids)}"
 
-    prompt = f"""\
+    _meta = f"""\
 Target Performance Level: {target_pl}
 Target Category: {target_category}
-{hazard_context}
+{hazard_context}"""
 
-Design document text:
----
-{document_text[:6000]}
----
+    _instructions = """\
 
 Review this design/proposal document as a CEFS-qualified functional safety engineer.
 Check whether the proposed design adequately addresses the required safety functions.
 
 Return JSON:
-{{
+{
   "safety_functions_identified": [
-    {{
+    {
       "name": "<safety function name>",
       "description": "<what it does>",
       "implementation": "<how it is implemented in this design>",
       "pl_claimed": "<PLa-PLe or not stated>",
       "category_claimed": "<Cat B/1/2/3/4 or not stated>"
-    }}
+    }
   ],
   "gaps": [
-    {{
+    {
       "severity": "<critical | major | minor>",
       "description": "<specific gap — what is missing or underspecified>",
       "clause_reference": "<standard and clause if applicable>",
       "recommendation": "<what needs to be added or clarified>"
-    }}
+    }
   ],
   "coverage_assessment": "<are all required safety functions addressed? What is missing?>",
   "overall_verdict": "<adequate | partially_adequate | inadequate>",
   "recommendations": ["<specific actionable recommendations>"]
-}}
-"""
+}"""
+
+    fname_lower = file_name.lower()
+    is_pdf  = bool(file_bytes) and (file_bytes[:4] == b"%PDF" or fname_lower.endswith(".pdf"))
+    is_docx = bool(file_bytes) and not is_pdf and (
+        fname_lower.endswith(".docx") or "wordprocessingml" in fname_lower
+    )
+
+    content: list[dict[str, Any]]
+
+    if is_pdf:
+        b64 = base64.standard_b64encode(file_bytes).decode()  # type: ignore[arg-type]
+        content = [
+            {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": b64}},
+            {"type": "text", "text": _meta + _instructions},
+        ]
+
+    elif is_docx:
+        text_to_use = (document_text or _extract_docx_text(file_bytes))[:120_000]  # type: ignore[arg-type]
+        images = _extract_docx_images(file_bytes)  # type: ignore[arg-type]
+        prompt = _meta + f"\n\nDocument text:\n---\n{text_to_use}\n---\n" + _instructions
+        content = [{"type": "text", "text": prompt}]
+        for img_bytes, media_type in images[:20]:
+            content.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": media_type, "data": base64.standard_b64encode(img_bytes).decode()},
+            })
+
+    else:
+        text_to_use = document_text[:120_000]
+        prompt = _meta + f"\n\nDocument text:\n---\n{text_to_use}\n---\n" + _instructions
+        content = [{"type": "text", "text": prompt}]
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         system=[
             {
                 "type": "text",
@@ -412,7 +480,7 @@ Return JSON:
                 "cache_control": {"type": "ephemeral"},
             }
         ],
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": content}],
     )
 
     return _parse_json(response.content[0].text)

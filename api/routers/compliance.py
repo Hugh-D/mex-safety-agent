@@ -102,6 +102,8 @@ class DesignReviewRequest(BaseModel):
     raHazardIds: Optional[list[str]] = None
 
 
+
+
 class DesignReviewResponse(BaseModel):
     safetyFunctionsIdentified: list[SafetyFunctionFound]
     gaps: list[DesignGap]
@@ -391,11 +393,39 @@ async def extract_document_text(file: UploadFile = File(...)) -> dict:
 
 @router.post("/compliance/design-review", response_model=DesignReviewResponse)
 @limiter.limit("20/minute")
-def review_design(request: Request, body: DesignReviewRequest) -> DesignReviewResponse:
-    """Review a design document (text) for safety function completeness."""
+async def review_design(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    document_text: str = Form(""),
+    target_pl: str = Form(...),
+    target_category: str = Form(...),
+    ra_hazard_ids: str = Form(""),
+) -> DesignReviewResponse:
+    """
+    Review a design document for safety function completeness.
+
+    Accepts a multipart form with an optional file upload:
+    - PDF  → sent to Claude as a document block (text + embedded images visible).
+    - DOCX → text extracted + embedded images sent as image blocks.
+    - TXT / no file → document_text field used directly.
+    """
+    file_bytes: Optional[bytes] = None
+    file_name = ""
+    if file is not None:
+        file_bytes = await file.read()
+        file_name = file.filename or ""
+
+    hazard_ids: Optional[list[str]] = (
+        [h.strip() for h in ra_hazard_ids.split(",") if h.strip()]
+        if ra_hazard_ids.strip()
+        else None
+    )
+
     try:
-        raw = compliance_service.review_design_document(
-            body.documentText, body.targetPl, body.targetCategory, body.raHazardIds,
+        raw = await asyncio.to_thread(
+            compliance_service.review_design_document,
+            document_text, target_pl, target_category, hazard_ids,
+            file_bytes, file_name,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI service error: {exc}")

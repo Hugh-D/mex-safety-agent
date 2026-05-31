@@ -17,10 +17,13 @@ const SEVERITY_COLOUR: Record<string, string> = {
   minor:    "#f57f17",
 }
 
+const MAX_FILE_BYTES = 20 * 1024 * 1024
+
 export default function DocumentReview() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [documentText, setDocumentText] = useState("")
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [extracting, setExtracting] = useState(false)
   const [targetPl, setTargetPl] = useState("PLd")
   const [targetCategory, setTargetCategory] = useState("Cat 3")
@@ -30,28 +33,41 @@ export default function DocumentReview() {
   const [error, setError] = useState<string | null>(null)
 
   async function handleFileUpload(file: File) {
+    if (file.size > MAX_FILE_BYTES) {
+      setError(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum upload size is 20 MB.`)
+      return
+    }
     setExtracting(true)
     setError(null)
     setUploadedFileName(file.name)
+    setUploadedFile(file)
     try {
       const text = await extractDocumentText(file)
       setDocumentText(text)
     } catch (e) {
       setError((e as Error).message)
       setUploadedFileName(null)
+      setUploadedFile(null)
     } finally {
       setExtracting(false)
     }
   }
 
   async function handleReview() {
-    if (!documentText.trim()) { setError("Please paste or type a document first."); return }
+    if (!documentText.trim() && !uploadedFile) {
+      setError("Please upload a document or paste text first.")
+      return
+    }
     setError(null)
     setLoading(true)
     setResult(null)
     try {
       const ids = hazardIds.split(",").map((s) => s.trim()).filter(Boolean)
-      const res = await reviewDesignDocument(documentText.trim(), targetPl, targetCategory, ids.length ? ids : undefined)
+      const res = await reviewDesignDocument(
+        documentText.trim(), targetPl, targetCategory,
+        ids.length ? ids : undefined,
+        uploadedFile,
+      )
       setResult(res)
     } catch (e) {
       setError((e as Error).message)
@@ -78,13 +94,13 @@ export default function DocumentReview() {
           onClick={() => fileRef.current?.click()}
         >
           {extracting ? (
-            <span className="drop-zone-hint">Extracting text…</span>
+            <span className="drop-zone-hint">Extracting text preview…</span>
           ) : uploadedFileName ? (
-            <span className="drop-zone-file">📄 {uploadedFileName} — text extracted</span>
+            <span className="drop-zone-file">📄 {uploadedFileName} — ready</span>
           ) : (
             <span className="drop-zone-hint">
               Drag & drop a document, or click to select<br />
-              <small>PDF, DOCX, or TXT</small>
+              <small>PDF, DOCX, or TXT — up to 20 MB</small>
             </span>
           )}
           <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"

@@ -263,13 +263,22 @@ export async function reviewDesignDocument(
   targetPl: string,
   targetCategory: string,
   raHazardIds?: string[],
+  file?: File | null,
 ): Promise<DesignReviewResponse> {
-  return requestJSON<DesignReviewResponse>("/compliance/design-review", {
-    documentText,
-    targetPl,
-    targetCategory,
-    raHazardIds,
+  const formData = new FormData()
+  if (file) formData.append("file", file)
+  formData.append("document_text", documentText)
+  formData.append("target_pl", targetPl)
+  formData.append("target_category", targetCategory)
+  if (raHazardIds?.length) formData.append("ra_hazard_ids", raHazardIds.join(","))
+
+  const response = await fetch(`${API_BASE}/compliance/design-review`, {
+    method: "POST",
+    headers: authHeader(),
+    body: formData,
   })
+  if (!response.ok) await throwWithDetail(response, "Design review failed")
+  return response.json()
 }
 
 export async function extractDocumentText(file: File): Promise<string> {
