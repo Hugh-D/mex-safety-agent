@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 import type { AssessmentProject, HazardEntry, HRNParameters, PhotoEntry } from "@shared/types/assessment"
-import { saveProject, analysePhoto, validateHrnAI, generateProjectReport, uploadHazardPhoto, PHOTO_BASE } from "../services/api"
+import { saveProject, analysePhoto, validateHrnAI, generateProjectReport, uploadHazardPhoto, startVoiceNote, pollVoiceNote, PHOTO_BASE } from "../services/api"
 import type { PhotoAnalysisResult, HRNValidationResult } from "../services/api"
 
 const HRN_PARAMS = {
@@ -117,8 +117,16 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
   const [saving, setSaving] = useState(false)
   const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [typedNotes, setTypedNotes] = useState("")
+  const [mitigationText, setMitigationText] = useState("")
+  const [enableAfterHrn, setEnableAfterHrn] = useState(false)
+  const [hrnAfter, setHrnAfter] = useState<HRNParameters>(DEFAULT_HRN)
+  const [recording, setRecording] = useState(false)
+  const [voiceProcessing, setVoiceProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const photoCacheRef = useRef<Map<string, string>>(new Map())
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   const hrnScore = calcHrn(hrn)
   const band = getRiskBand(hrnScore)
@@ -127,6 +135,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     setPhotoFile(null); setPhotoPreview(null); setLocation(""); setMode(MODES[0])
     setTask(""); setHazardTypes([]); setHrn(DEFAULT_HRN); setAiResult(null)
     setValidation(null); setError(null); setShowForm(false); setEditingHazardIdx(null)
+    setTypedNotes(""); setMitigationText(""); setEnableAfterHrn(false); setHrnAfter(DEFAULT_HRN)
   }
 
   function startEditHazard(idx: number) {
@@ -136,6 +145,15 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     setTask(h.task)
     setHazardTypes([...h.hazardTypes])
     setHrn({ LO: h.hrnBefore.LO, FE: h.hrnBefore.FE, DPH: h.hrnBefore.DPH, NP: h.hrnBefore.NP })
+    setTypedNotes(h.typedNotes ?? "")
+    setMitigationText((h.riskReductionMeasures ?? []).join("\n"))
+    if (h.hrnAfter) {
+      setEnableAfterHrn(true)
+      setHrnAfter({ LO: h.hrnAfter.LO, FE: h.hrnAfter.FE, DPH: h.hrnAfter.DPH, NP: h.hrnAfter.NP })
+    } else {
+      setEnableAfterHrn(false)
+      setHrnAfter(DEFAULT_HRN)
+    }
     const cachedPreview = photoCacheRef.current.get(h.id) ?? null
     const serverPreview = h.photos.length > 0 ? photoUrl(h.photos[0].filepath) : null
     setPhotoFile(null); setPhotoPreview(cachedPreview ?? serverPreview); setAiResult(null); setValidation(null); setError(null)
@@ -165,6 +183,50 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
     } finally {
       setAnalysing(false)
     }
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      audioChunksRef.current = []
+      const mr = new MediaRecorder(stream)
+      mediaRecorderRef.current = mr
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+        setVoiceProcessing(true)
+        try {
+          const jobId = await startVoiceNote(blob, location || "Unspecified")
+          const deadline = Date.now() + 60_000
+          while (Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 2500))
+            const result = await pollVoiceNote(jobId)
+            if (result) {
+              if (result.suggestedMode && MODES.includes(result.suggestedMode)) setMode(result.suggestedMode)
+              if (result.suggestedTask) setTask((prev) => prev || result.suggestedTask!)
+              if (result.hazardTypes?.length) setHazardTypes((prev) => [...new Set([...prev, ...result.hazardTypes])])
+              if (result.typedNotes) setTypedNotes((prev) => prev ? `${prev}\n${result.typedNotes}` : result.typedNotes!)
+              break
+            }
+          }
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setVoiceProcessing(false)
+        }
+      }
+      mr.start()
+      setRecording(true)
+      setError(null)
+    } catch (e: any) {
+      setError(`Microphone access denied: ${e.message}`)
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop()
+    setRecording(false)
   }
 
   async function handleValidate() {
@@ -201,16 +263,23 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
           photos = [{ filepath, timestamp: new Date().toISOString(), siteLabel: location.trim(), annotations: [] }]
           photoCacheRef.current.set(existing.id, photoUrl(filepath))
         }
+        const mitSteps = mitigationText.split("\n").map((s) => s.trim()).filter(Boolean)
+        const afterScore = enableAfterHrn ? calcHrn(hrnAfter) : undefined
         const edited: HazardEntry = {
           ...existing,
           location: location.trim(),
           mode,
           task: task.trim(),
+          typedNotes: typedNotes.trim() || undefined,
           hazardTypes,
           photos,
           hrnBefore: hrn,
           hrnScoreBefore: hrnScore,
           riskBandBefore: band.label,
+          riskReductionMeasures: mitSteps,
+          hrnAfter: enableAfterHrn ? hrnAfter : undefined,
+          hrnScoreAfter: afterScore,
+          riskBandAfter: afterScore !== undefined ? getRiskBand(afterScore).label : undefined,
           aiValidationFlags: aiFlags.length > 0 ? aiFlags : existing.aiValidationFlags,
         }
         updatedHazards = project.hazards.map((h, i) => i === editingHazardIdx ? edited : h)
@@ -222,18 +291,24 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
           photos = [{ filepath, timestamp: new Date().toISOString(), siteLabel: location.trim(), annotations: [] }]
           photoCacheRef.current.set(hazardId, photoUrl(filepath))
         }
+        const mitSteps = mitigationText.split("\n").map((s) => s.trim()).filter(Boolean)
+        const afterScore = enableAfterHrn ? calcHrn(hrnAfter) : undefined
         const newHazard: HazardEntry = {
           id: hazardId,
           location: location.trim(),
           mode,
           task: task.trim(),
+          typedNotes: typedNotes.trim() || undefined,
           hazardTypes,
           photos,
           voiceNotes: [],
           hrnBefore: hrn,
           hrnScoreBefore: hrnScore,
           riskBandBefore: band.label,
-          riskReductionMeasures: [],
+          riskReductionMeasures: mitSteps,
+          hrnAfter: enableAfterHrn ? hrnAfter : undefined,
+          hrnScoreAfter: afterScore,
+          riskBandAfter: afterScore !== undefined ? getRiskBand(afterScore).label : undefined,
           standardsReferences: [],
           aiValidationFlags: aiFlags,
           aiRecommendations: [],
@@ -443,6 +518,19 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
                     {analysing ? <><span className="btn-spinner" />Analysing…</> : "Analyse with AI"}
                   </button>
                 )}
+                {!recording && !voiceProcessing && (
+                  <button type="button" className="pv-voice-btn" onClick={startRecording} title="Record voice note">
+                    🎤 Voice
+                  </button>
+                )}
+                {recording && (
+                  <button type="button" className="pv-voice-btn pv-voice-btn--recording" onClick={stopRecording}>
+                    ⏹ Stop
+                  </button>
+                )}
+                {voiceProcessing && (
+                  <span className="pv-voice-processing"><span className="btn-spinner" />Transcribing…</span>
+                )}
               </div>
               {photoPreview && <img src={photoPreview} alt="hazard" className="pv-photo-preview" />}
             </div>
@@ -477,6 +565,19 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
             </div>
 
             <div className="pv-form-group">
+              <label className="pv-label">
+                Notes <small style={{ fontWeight: 400, color: "#8a9ab0" }}>(auto-filled by voice, or type freely)</small>
+                <textarea
+                  value={typedNotes}
+                  onChange={(e) => setTypedNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Additional observations, measurements, names…"
+                  style={{ fontFamily: "inherit", fontSize: "0.88rem", resize: "vertical" }}
+                />
+              </label>
+            </div>
+
+            <div className="pv-form-group">
               <span className="pv-label">Hazard Types</span>
               <div className="pv-hazard-type-grid">
                 {HAZARD_TYPES.map((t) => (
@@ -505,6 +606,53 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
               <div className="pv-hrn-score" style={{ background: band.bg, color: band.fg }}>
                 HRN: {hrnScore.toFixed(1)} — {band.label}
               </div>
+            </div>
+
+            <div className="pv-form-group">
+              <label className="pv-label">
+                Risk Reduction Measures <small style={{ fontWeight: 400, color: "#8a9ab0" }}>(one per line)</small>
+                <textarea
+                  value={mitigationText}
+                  onChange={(e) => setMitigationText(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Install fixed guarding to AS 4024.1601&#10;Add interlock to access door&#10;Provide noise enclosure"
+                  style={{ fontFamily: "inherit", fontSize: "0.88rem", resize: "vertical" }}
+                />
+              </label>
+            </div>
+
+            <div className="pv-form-group">
+              <label className="pv-checkbox-label" style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                <input
+                  type="checkbox"
+                  checked={enableAfterHrn}
+                  onChange={(e) => setEnableAfterHrn(e.target.checked)}
+                />
+                Specify revised HRN after mitigation
+              </label>
+              {enableAfterHrn && (() => {
+                const afterScore = calcHrn(hrnAfter)
+                const afterBand = getRiskBand(afterScore)
+                return (
+                  <>
+                    <div className="pv-hrn-grid" style={{ marginTop: 10 }}>
+                      {(["LO", "FE", "DPH", "NP"] as const).map((param) => (
+                        <div key={param} className="pv-hrn-select">
+                          <span className="pv-hrn-param-label">{param}</span>
+                          <select value={hrnAfter[param]} onChange={(e) => setHrnAfter({ ...hrnAfter, [param]: parseFloat(e.target.value) })}>
+                            {HRN_PARAMS[param].map((o) => (
+                              <option key={o.value} value={o.value}>{o.label} ({o.value})</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pv-hrn-score" style={{ background: afterBand.bg, color: afterBand.fg }}>
+                      Revised HRN: {afterScore.toFixed(1)} — {afterBand.label}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
 
             <button

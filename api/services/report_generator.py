@@ -113,11 +113,12 @@ CONTACT_LINE = (
 # ---------------------------------------------------------------------------
 def _build_styles() -> dict:
     return {
-        "h1": ParagraphStyle("h1", fontName="Helvetica-Bold", fontSize=22, textColor=NAVY, spaceAfter=6),
+        "h1": ParagraphStyle("h1", fontName="Helvetica-Bold", fontSize=22, textColor=NAVY, spaceAfter=3),
         "h2": ParagraphStyle("h2", fontName="Helvetica-Bold", fontSize=14, textColor=NAVY, spaceBefore=10, spaceAfter=4),
         "h3": ParagraphStyle("h3", fontName="Helvetica-Bold", fontSize=11, textColor=NAVY, spaceBefore=6, spaceAfter=3),
         "body": ParagraphStyle("body", fontName="Helvetica", fontSize=9, leading=13, textColor=BLACK, spaceAfter=4),
         "small": ParagraphStyle("small", fontName="Helvetica", fontSize=7.5, leading=11, textColor=MID_GREY),
+        "ai_flag": ParagraphStyle("ai_flag", fontName="Helvetica", fontSize=8, leading=11, textColor=colors.HexColor("#334e68"), spaceBefore=2),
         "th": ParagraphStyle("th", fontName="Helvetica-Bold", fontSize=8, textColor=WHITE, alignment=TA_CENTER),
         "td": ParagraphStyle("td", fontName="Helvetica", fontSize=8, leading=10, textColor=BLACK),
         "tdc": ParagraphStyle("tdc", fontName="Helvetica", fontSize=8, leading=10, textColor=BLACK, alignment=TA_CENTER),
@@ -240,8 +241,9 @@ def _section_cover(req: ReportDraftRequest, s: dict) -> list:
     return [
         _sp(72),  # clear the navy band
         Paragraph("Risk Assessment Report", s["h1"]),
+        _sp(5),
         _LimeRule(),
-        _sp(6),
+        _sp(10),
         Paragraph("Client", s["cover_label"]),
         Paragraph(b.client, s["cover_value"]),
         Paragraph("Site", s["cover_label"]),
@@ -565,7 +567,7 @@ def _section_hazards(hazards: List[HazardEntry], s: dict) -> list:
                 items.append(Paragraph(f"• {rec}", s["body"]))
         if h.ai_validation_flags:
             for flag in h.ai_validation_flags:
-                items.append(Paragraph(f"⚠ {flag}", s["small"]))
+                items.append(Paragraph(f"■ {flag}", s["ai_flag"]))
 
         items.append(_sp(5))
 

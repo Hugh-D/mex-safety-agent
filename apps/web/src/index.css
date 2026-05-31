@@ -809,6 +809,7 @@ nav button.active {
 .pv-chip { background: #f0f4ff; color: #002559; font-size: 0.78rem; padding: 3px 8px; border-radius: 4px; }
 .empty-state { color: #8a9ab0; font-style: italic; margin: 0; }
 .pv-add-form { background: white; border: 1px solid #d8e3ef; border-radius: 12px; padding: 24px; margin-top: 16px; }
+.pv-add-form textarea { width: 100%; border: 1px solid #d8e3ef; border-radius: 8px; padding: 10px 12px; background: white; font: inherit; display: block; }
 .pv-add-form h4 { margin: 0 0 20px; font-size: 1.1rem; color: #002559; }
 .pv-form-group { margin-bottom: 20px; }
 .pv-label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; color: #102a43; gap: 6px; }
@@ -845,6 +846,13 @@ nav button.active {
 .pv-form-actions .primary-btn { margin-top: 0; }
 .pv-apply-ai-btn { margin-top: 12px; background: #70bf54; color: #002559; font-weight: 700; font-size: 0.88rem; border: none; border-radius: 8px; padding: 9px 18px; cursor: pointer; display: inline-flex; align-items: center; }
 .pv-apply-ai-btn:hover { background: #5aaa3e; }
+.pv-challenged-row span { color: #1a3d7a; }
+.pv-voice-btn { background: white; color: #002559; border: 1.5px solid #002559; padding: 10px 14px; min-height: 44px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 600; }
+.pv-voice-btn:hover { background: #f0f4ff; }
+.pv-voice-btn--recording { background: #fdecea; border-color: #c62828; color: #c62828; animation: pv-pulse 1s ease-in-out infinite; }
+.pv-voice-btn--recording:hover { background: #fdecea; }
+.pv-voice-processing { display: inline-flex; align-items: center; font-size: 0.85rem; color: #4a6080; gap: 4px; }
+@keyframes pv-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
 /* ── Print styles ── */
 .print-only { display: none; }

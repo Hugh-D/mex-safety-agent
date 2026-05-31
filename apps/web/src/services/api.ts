@@ -99,6 +99,45 @@ export interface PhotoAnalysisResult {
   flags: string[]
 }
 
+// ---------------------------------------------------------------------------
+// AI — voice note
+// ---------------------------------------------------------------------------
+export interface VoiceExtractResult {
+  suggestedMode: string | null
+  suggestedTask: string | null
+  hazardTypes: string[]
+  typedNotes: string | null
+  transcript: string
+}
+
+export async function startVoiceNote(audioBlob: Blob, siteLabel: string): Promise<string> {
+  const formData = new FormData()
+  formData.append("file", audioBlob, "voice.webm")
+  formData.append("site_label", siteLabel)
+  const res = await fetch(`${API_BASE}/ai/voice/start`, { method: "POST", headers: authHeader(), body: formData })
+  if (!res.ok) await throwWithDetail(res, "Voice upload failed")
+  const { job_id } = await res.json()
+  return job_id
+}
+
+export async function pollVoiceNote(jobId: string): Promise<VoiceExtractResult | null> {
+  const res = await fetch(`${API_BASE}/ai/voice/${jobId}`, { headers: authHeader() })
+  if (!res.ok) throw new Error(`Voice poll failed: ${res.statusText}`)
+  const job = await res.json()
+  if (job.status === "complete") {
+    const r = job.result
+    return {
+      suggestedMode: r.suggested_mode ?? null,
+      suggestedTask: r.suggested_task ?? null,
+      hazardTypes: r.hazard_types ?? [],
+      typedNotes: r.typed_notes ?? null,
+      transcript: r.transcript ?? "",
+    }
+  }
+  if (job.status === "error") throw new Error(job.detail ?? "Voice extraction failed")
+  return null
+}
+
 export async function analysePhoto(file: File, siteLabel: string): Promise<PhotoAnalysisResult> {
   const formData = new FormData()
   formData.append("file", file)
