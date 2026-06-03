@@ -854,6 +854,133 @@ nav button.active {
 .pv-voice-processing { display: inline-flex; align-items: center; font-size: 0.85rem; color: #4a6080; gap: 4px; }
 @keyframes pv-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
+/* ── Review tabs toggle (mobile only) ── */
+/* Desktop: review tabs always visible, toggle hidden */
+.nav-review-tab { /* always shown on desktop */ }
+.review-tabs-toggle { display: none; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 16px;
+  }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    flex: 1;
+    font-size: 1.3rem;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .change-key-btn {
+    flex-shrink: 0;
+    margin-left: 0;
+  }
+
+  nav {
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+    order: 3;
+  }
+
+  nav button {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+
+  /* Mobile: hide review tabs unless toggled on */
+  .nav-review-tab {
+    display: none;
+  }
+
+  .nav-review-tab--visible {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Show the review tools toggle on mobile */
+  .review-tabs-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #6b8299;
+    cursor: pointer;
+    user-select: none;
+    padding: 8px 10px;
+    min-height: 44px;
+    border: 1px solid #d8e3ef;
+    border-radius: 8px;
+    background: transparent;
+    font-weight: 500;
+  }
+
+  .review-tabs-toggle input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: #002559;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* PLr grid: stack to single column */
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Project brief: single column */
+  .pv-brief-card {
+    grid-template-columns: 1fr;
+  }
+
+  /* Photo / voice button row: allow wrapping */
+  .pv-photo-row {
+    flex-wrap: wrap;
+  }
+
+  /* Comfortable tap height for inputs and selects */
+  input:not([type="checkbox"]),
+  select {
+    min-height: 44px;
+  }
+
+  /* HRN param grid: tighten gap on mobile */
+  .pv-hrn-grid {
+    gap: 10px;
+  }
+
+  /* Hazard type checkboxes: larger tap area */
+  .pv-checkbox-label {
+    min-height: 36px;
+  }
+
+  /* Project header: wrap download buttons below title */
+  .pv-header {
+    flex-wrap: wrap;
+  }
+
+  .download-btn-group {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  h2 {
+    font-size: 1.05rem;
+  }
+}
+
 /* ── Print styles ── */
 .print-only { display: none; }
 

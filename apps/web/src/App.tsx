@@ -174,6 +174,7 @@ const defaultParameters: HRNParameters = {
 function App() {
   const [gateKey, setGateKey] = useState(0)
   const [activeTab, setActiveTab] = useState<"calculator" | "projects" | "design-review" | "document-review">("calculator")
+  const [showReviewTabs, setShowReviewTabs] = useState(false) // mobile only — desktop always shows review tabs via CSS
   const [parameters, setParameters] = useState<HRNParameters>(defaultParameters)
   const [severity, setSeverity] = useState("S2")
   const [frequency, setFrequency] = useState("F2")
@@ -196,6 +197,13 @@ function App() {
       loadProjects()
     }
   }, [activeTab])
+
+  useEffect(() => {
+    // If user unchecks review tools while on a review tab, bounce back to Projects
+    if (!showReviewTabs && (activeTab === "design-review" || activeTab === "document-review")) {
+      setActiveTab("projects")
+    }
+  }, [showReviewTabs])
 
   const loadProjects = async () => {
     try {
@@ -317,16 +325,32 @@ function App() {
           </button>
           <button
             onClick={() => setActiveTab("design-review")}
-            className={activeTab === "design-review" ? "active" : ""}
+            className={[
+              activeTab === "design-review" ? "active" : "",
+              "nav-review-tab",
+              showReviewTabs ? "nav-review-tab--visible" : "",
+            ].filter(Boolean).join(" ")}
           >
             Drawing Review
           </button>
           <button
             onClick={() => setActiveTab("document-review")}
-            className={activeTab === "document-review" ? "active" : ""}
+            className={[
+              activeTab === "document-review" ? "active" : "",
+              "nav-review-tab",
+              showReviewTabs ? "nav-review-tab--visible" : "",
+            ].filter(Boolean).join(" ")}
           >
             Document Review
           </button>
+          <label className="review-tabs-toggle">
+            <input
+              type="checkbox"
+              checked={showReviewTabs}
+              onChange={(e) => setShowReviewTabs(e.target.checked)}
+            />
+            Review tools
+          </label>
         </nav>
         <ChangeKeyButton onChanged={() => setGateKey((k) => k + 1)} />
       </header>
