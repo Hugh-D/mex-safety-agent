@@ -4,7 +4,7 @@ import type { HRNParameters, PLRRequest, HRNScoreResponse, PLRResultResponse, As
 import DesignReview from "./components/DesignReview"
 import DocumentReview from "./components/DocumentReview"
 import ProjectView from "./components/ProjectView"
-import { ApiKeyGate, ChangeKeyButton } from "./components/ApiKeyGate"
+import { ApiKeyGate } from "./components/ApiKeyGate"
 
 const HRN_PARAMS = {
   LO: [
@@ -172,7 +172,6 @@ const defaultParameters: HRNParameters = {
 }
 
 function App() {
-  const [gateKey, setGateKey] = useState(0)
   const [activeTab, setActiveTab] = useState<"calculator" | "projects" | "design-review" | "document-review">("calculator")
   const [showReviewTabs, setShowReviewTabs] = useState(false) // mobile only — desktop always shows review tabs via CSS
   const [parameters, setParameters] = useState<HRNParameters>(defaultParameters)
@@ -306,7 +305,7 @@ function App() {
   }
 
   return (
-    <ApiKeyGate key={gateKey} onKeyChange={() => setGateKey((k) => k + 1)}>
+    <ApiKeyGate>
     <div className="app-shell">
       <header>
         <h1>MEX Safety Platform</h1>
@@ -352,7 +351,6 @@ function App() {
             Review tools
           </label>
         </nav>
-        <ChangeKeyButton onChanged={() => setGateKey((k) => k + 1)} />
       </header>
 
       {activeTab === "calculator" && (

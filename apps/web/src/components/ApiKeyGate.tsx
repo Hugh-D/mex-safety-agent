@@ -3,10 +3,9 @@ import { validateApiKey } from "../services/api"
 
 interface Props {
   children: React.ReactNode
-  onKeyChange: () => void
 }
 
-export function ApiKeyGate({ children, onKeyChange }: Props) {
+export function ApiKeyGate({ children }: Props) {
   const [state, setState] = useState<"checking" | "needs-key" | "ready">("checking")
   const [input, setInput] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -69,16 +68,4 @@ export function ApiKeyGate({ children, onKeyChange }: Props) {
   }
 
   return <>{children}</>
-}
-
-export function ChangeKeyButton({ onChanged }: { onChanged: () => void }) {
-  const handleClick = () => {
-    localStorage.removeItem("mex_api_key")
-    onChanged()
-  }
-  return (
-    <button className="change-key-btn" onClick={handleClick} title="Change API key">
-      Change key
-    </button>
-  )
 }

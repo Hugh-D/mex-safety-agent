@@ -87,21 +87,6 @@
 .key-gate-btn:hover:not(:disabled) { background: #1a4a8a; }
 .key-gate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── Change Key button (header) ───────────────────────────────────────────── */
-.change-key-btn {
-  font-size: 12px;
-  color: #6b8299;
-  background: none;
-  border: 1px solid #c8d8ea;
-  border-radius: 6px;
-  padding: 4px 10px;
-  cursor: pointer;
-  margin-left: auto;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.change-key-btn:hover { color: #002559; border-color: #002559; }
-
 /* ── ──────────────────────────────────────────────────────────────────────── */
 @keyframes claude-spin {
   from { transform: rotate(0deg); }
@@ -878,11 +863,6 @@ nav button.active {
     font-size: 1.3rem;
     margin: 0;
     min-width: 0;
-  }
-
-  .change-key-btn {
-    flex-shrink: 0;
-    margin-left: 0;
   }
 
   nav {
