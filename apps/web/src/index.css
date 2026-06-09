@@ -940,6 +940,17 @@ nav button.active {
     gap: 10px;
   }
 
+  /* Calculator grids: single column on mobile */
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Calculator action buttons: full width */
+  section > button {
+    width: 100%;
+    margin-top: 16px;
+  }
+
   /* Hazard type checkboxes: larger tap area */
   .pv-checkbox-label {
     min-height: 36px;

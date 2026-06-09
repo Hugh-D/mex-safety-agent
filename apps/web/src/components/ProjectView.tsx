@@ -124,6 +124,7 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
   const [recording, setRecording] = useState(false)
   const [voiceProcessing, setVoiceProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const photoCacheRef = useRef<Map<string, string>>(new Map())
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -186,15 +187,22 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
   }
 
   async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Voice recording is not supported in this browser. Try Chrome.")
+      return
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       audioChunksRef.current = []
-      const mr = new MediaRecorder(stream)
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find(
+        (t) => MediaRecorder.isTypeSupported(t),
+      ) ?? ""
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : {})
       mediaRecorderRef.current = mr
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop())
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || mimeType || "audio/webm" })
         setVoiceProcessing(true)
         try {
           const jobId = await startVoiceNote(blob, location || "Unspecified")
@@ -507,11 +515,30 @@ export default function ProjectView({ project, onBack, onProjectUpdate }: Props)
                   setPhotoFile(f)
                   setPhotoPreview(URL.createObjectURL(f))
                   setAiResult(null); setValidation(null)
+                  e.target.value = ""
+                }}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (!f) return
+                  setPhotoFile(f)
+                  setPhotoPreview(URL.createObjectURL(f))
+                  setAiResult(null); setValidation(null)
+                  e.target.value = ""
                 }}
               />
               <div className="pv-photo-row">
+                <button type="button" className="pv-outline-btn" onClick={() => cameraInputRef.current?.click()}>
+                  📷 Take Photo
+                </button>
                 <button type="button" className="pv-outline-btn" onClick={() => fileInputRef.current?.click()}>
-                  {(photoFile || photoPreview) ? "Change Photo" : "Upload Photo"}
+                  {(photoFile || photoPreview) ? "Change Photo" : "Gallery"}
                 </button>
                 {photoFile && (
                   <button type="button" className="primary-btn" onClick={handleAnalyse} disabled={analysing}>
