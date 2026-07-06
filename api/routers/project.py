@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 from models.schemas import AssessmentProject, ProjectListResponse
 from services.project_store import save_project, load_project, list_projects
+from services.hrn_plr import verify_hazards
 from services import storage
 
 router = APIRouter()
@@ -11,6 +12,9 @@ router = APIRouter()
 
 @router.post("/assessment/project", response_model=AssessmentProject)
 def create_or_update_project(project: AssessmentProject) -> dict:
+    errors = verify_hazards(project.hazards)
+    if errors:
+        raise HTTPException(status_code=422, detail={"message": "HRN verification failed — scores/bands must match the server calculation.", "errors": errors})
     project.updated_at = datetime.utcnow()
     project.created_at = project.created_at or project.updated_at
     saved = save_project(project)

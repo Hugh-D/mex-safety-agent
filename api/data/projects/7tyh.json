@@ -1,0 +1,115 @@
+{
+  "project_brief": {
+    "project_number": "7tyh",
+    "client": "Test 01",
+    "site": "Narrellan",
+    "machine_or_line": "Heat tunnel",
+    "assessment_date": "2026-05-27",
+    "team": [],
+    "scope_description": "",
+    "standards_applicable": [
+      "AS/NZS 4024.1201",
+      "ISO 13849-1:2015"
+    ],
+    "lifecycle_exclusions": []
+  },
+  "hazards": [
+    {
+      "id": "H01",
+      "location": "Heat tunnel",
+      "mode": "Operation",
+      "task": "Operating heat tunnel conveyor system during production",
+      "hazard_types": [
+        "Burn/Scald",
+        "Entanglement",
+        "Drawing-in",
+        "Crushing",
+        "Cutting",
+        "Shearing"
+      ],
+      "photos": [
+        {
+          "filepath": "file:///data/user/0/host.exp.exponent/cache/ImagePicker/c4c9d434-e23d-4ca2-a92a-ebf6b569efde.jpeg",
+          "timestamp": "2026-05-27T23:27:45.806000Z",
+          "site_label": "Heat tunnel",
+          "annotations": []
+        }
+      ],
+      "voice_notes": [],
+      "typed_notes": "Entry conveyor chain accessible with no guards. Clamp has no means of preventing hand access. Hands can be inserted into heat tunnel opening. Casters present but feet available to fix machine in place and prevent movement. E-stop circuit channel configuration unknown — unclear if dual channel. Exit side conveyor accessible with no guards — hazard is visible.",
+      "hrn_before": {
+        "LO": 5.0,
+        "FE": 4.0,
+        "DPH": 1.0,
+        "NP": 1.0
+      },
+      "hrn_score_before": 20.0,
+      "risk_band_before": "Significant",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "hrn_after": {
+        "LO": 5.0,
+        "FE": 4.0,
+        "DPH": 12.0,
+        "NP": 1.0
+      },
+      "hrn_score_after": 240.0,
+      "risk_band_after": "Very High",
+      "ai_validation_flags": [
+        "DPH=1.0 is irreconcilable with the engineer's own hazard description of critical illness (DPH=12) from jaw burns and permanent injury from nip-point drawing-in. This appears to be a data-entry error; DPH must be corrected before the HRN score is used for any risk-evaluation or risk-reduction decision.",
+        "Corrected HRN with LO=5.0, FE=4.0, DPH=12.0, NP=1.0 yields HRN = 240, placing this hazard in the 'Very High' band (>100–500), requiring urgent engineered risk reduction consistent with the hierarchy in ISO 12100:2011 cl.6.1 and AS/NZS 4024.1204.",
+        "The absence of an interlocked guard at the sealer jaw is consistent with LO=5.0 and should be treated as a priority corrective action. Per ISO 14119:2013 cl.5 and AS/NZS 4024.1601:2014, an interlocked movable guard or electrosensitive protective device at the point of operation is required; until installed, the risk remains at the elevated corrected HRN level.",
+        "The heated tunnel chamber exhaust fan and hot surface pictograms indicate a separate burn/scald hazard zone that should be assessed as a discrete hazard entry with its own HRN parameters rather than combined with the jaw/nip-point mechanical hazard — ISO 12100:2011 cl.5.4 requires each hazardous situation to be assessed individually.",
+        "No risk-reduction measures are recorded. AS/NZS 4024.1303 cl.8 and ISO 12100:2011 cl.6 require application of the three-step hierarchy (inherently safe design, safeguarding, information for use) before residual risk is accepted. The current state — no guard, DPH-level harm, frequent operator exposure — is not acceptable at any corrected HRN band above 'Acceptable'."
+      ],
+      "ai_recommendations": [
+        "Install fixed guards (per ISO 14120 / AS/NZS 4024.1601) with fasteners requiring tools for removal on all four sides of the heat tunnel conveyor entry and exit apertures, enclosing all rotating drive components (nip points, drive rollers, chain/belt drives). Aperture openings must not exceed dimensions permitting finger reach per ISO 13857:2008 Table 4 (slot ≤4 mm or sr ≥850 mm for hand-sized openings). Gaps between conveyor belt and fixed structure shall meet ISO 13854 minimums: ≥25 mm for finger exclusion at all pinch points, ≥100 mm where hand/wrist access is foreseeable. This single engineering measure directly addresses entanglement, drawing-in, crushing, cutting and shearing hazard types simultaneously.",
+        "Install interlocking guards with guard locking (per ISO 14119:2013 / AS/NZS 4024.1602) on all access panels and doors where maintenance or jam clearance requires entry while the conveyor could be energised. Guard locking shall be selected with sufficient holding force and the interlocking device shall achieve PLd / Category 3 (per ISO 13849-1:2015 / AS/NZS 4024.1503:2019) as required by risk assessment given daily operator exposure (F2) and serious irreversible injury potential (S2). The interlock shall: (a) prevent conveyor drive from starting while guard is open; (b) initiate a stop command if guard is opened during operation; (c) maintain the locked condition until all hazardous motion has ceased (zero-speed monitoring or timed delay). Manual reset required outside the hazard zone before restart, per AS/NZS 4024.1503 cl 5.2.2.",
+        "Implement a documented Lockout/Tagout (LOTO) energy isolation procedure per AS/NZS 4024.1801 cl 6.3.5.4 (isolation and energy dissipation) and AS 4024.1901 for all maintenance, cleaning and jam-clearance tasks on the heat tunnel. Procedure shall cover: electrical isolation of conveyor drive and heater elements at identified isolation points; pneumatic/hydraulic pressure bleed-down where applicable; thermal cool-down wait time with surface temperature verification before internal access (addressing burn/scald hazard from heated tunnel interior and conveyor surfaces, typically ≥60°C). The procedure shall be formally documented, displayed at the machine, and workers must demonstrate competency. This measure reduces both burn/scald and residual mechanical hazard LO during non-production tasks.",
+        "Install a minimum of one emergency stop device (mushroom-head, red on yellow, self-latching, non-automatic reset) per ISO 13850:2015 / AS/NZS 4024.1604:2019 at each operator station and at both entry and exit ends of the heat tunnel, within immediate reach of operators without requiring entry into the hazard zone. The e-stop safety function shall achieve PLd / Category 3 per ISO 13849-1:2015. Actuation shall remove power from both conveyor drive AND heater elements simultaneously. Manual reset shall be required before restart. This measure supports the stop function for all hazard types and reduces the possibility-of-avoidance (P) parameter — improving P from P2 (scarcely possible) toward P1 (possible under specific conditions) once e-stops are conspicuously located.",
+        "Fit heat-resistant warning labels (per ISO 11684 pictogram standards, referenced via ISO 12100:2011 cl 6.4.4) at all heat tunnel entry/exit points and access panels identifying: (1) burn/scald hazard from heated surfaces and internal temperatures (minimum surface temperature marking per IEC 60204-1 cl 4.4.2 if >55°C contact surfaces accessible); (2) entanglement/drawing-in hazard at conveyor nip points; (3) mandatory PPE requirement (heat-resistant gloves, arm protection) when guards are removed under LOTO. Labels shall be durable, positioned at point-of-hazard, and supplemented by audible warning (buzzer/siren, per ISO 12100:2011 cl 6.4.3) activated 5 seconds before conveyor start to alert personnel in the vicinity.",
+        "Mandate and enforce PPE for all operators and maintenance personnel working at or within 1 metre of the heat tunnel during production: (a) heat-resistant gloves (minimum EN 407 / AS/NZS 2161 performance level for contact heat at anticipated surface temperatures); (b) close-fitting long-sleeve heat-resistant arm protection; (c) no loose clothing, jewellery, or unrestrained hair within 500 mm of conveyor entry/exit apertures (entanglement risk). PPE selection shall be documented in a risk assessment, and workers shall receive documented training in correct donning, inspection and limitations. PPE addresses residual burn/scald risk during normal production operation after engineering controls are in place and provides a final barrier against residual mechanical injury if a guard is temporarily removed under permit."
+      ],
+      "ai_logs": []
+    },
+    {
+      "id": "H02",
+      "location": "Underside access to chain",
+      "mode": "Maintenance",
+      "task": "Inspect or lubricate exposed underside chain and sprocket drive",
+      "hazard_types": [
+        "Entanglement",
+        "Drawing-in",
+        "Crushing",
+        "Shearing",
+        "Cutting",
+        "Friction and abrasion"
+      ],
+      "photos": [
+        {
+          "filepath": "file:///data/user/0/host.exp.exponent/cache/ImagePicker/aeb24dfc-eb3a-4522-a1fd-9600480651e5.jpeg",
+          "timestamp": "2026-05-27T23:31:00.067000Z",
+          "site_label": "Underside access to chain",
+          "annotations": []
+        }
+      ],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 8.0,
+        "FE": 2.5,
+        "DPH": 4.0,
+        "NP": 1.0
+      },
+      "hrn_score_before": 80.0,
+      "risk_band_before": "High",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "ai_validation_flags": [],
+      "ai_recommendations": [],
+      "ai_logs": []
+    }
+  ],
+  "created_at": "2026-05-27T23:20:36.019000Z",
+  "updated_at": "2026-05-27T23:31:13.224885",
+  "status": "draft"
+}

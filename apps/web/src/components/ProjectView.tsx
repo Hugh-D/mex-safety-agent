@@ -62,15 +62,18 @@ function calcHrn(p: HRNParameters): number {
   return Math.round(p.LO * p.FE * p.DPH * p.NP * 1000) / 1000
 }
 
+// Boundaries are EXCLUSIVE on the upper bound, matching the server exactly.
+// A boundary score belongs to the more severe band (conservative).
+// Must stay in sync with api/data/hrn_tables.json.
 function getRiskBand(score: number): { label: string; bg: string; fg: string } {
-  if (score <= 1)   return { label: "Acceptable",   bg: "#00B050", fg: "white" }
+  if (score < 1)    return { label: "Acceptable",   bg: "#00B050", fg: "white" }
   if (score < 4)    return { label: "Very Low",      bg: "#92D050", fg: "#102a43" }
-  if (score <= 6)   return { label: "Needs Review",  bg: "#FFA000", fg: "white" }
-  if (score <= 10)  return { label: "Low",           bg: "#FFFF00", fg: "#102a43" }
-  if (score <= 50)  return { label: "Significant",   bg: "#FFC000", fg: "#102a43" }
-  if (score <= 100) return { label: "High",          bg: "#FF6600", fg: "white" }
-  if (score <= 500) return { label: "Very High",     bg: "#FF0000", fg: "white" }
-  if (score <= 1000) return { label: "Extreme",      bg: "#CC0000", fg: "white" }
+  if (score < 6)    return { label: "Needs Review",  bg: "#FFA000", fg: "white" }
+  if (score < 10)   return { label: "Low",           bg: "#FFFF00", fg: "#102a43" }
+  if (score < 50)   return { label: "Significant",   bg: "#FFC000", fg: "#102a43" }
+  if (score < 100)  return { label: "High",          bg: "#FF6600", fg: "white" }
+  if (score < 500)  return { label: "Very High",     bg: "#FF0000", fg: "white" }
+  if (score < 1000) return { label: "Extreme",       bg: "#CC0000", fg: "white" }
   return { label: "Unacceptable", bg: "#990000", fg: "white" }
 }
 

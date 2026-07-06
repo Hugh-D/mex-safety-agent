@@ -56,38 +56,62 @@ def reaching_over(a_mm: float, b_mm: float, risk_level: str) -> Dict[str, Any]:
 
     b_values: List[int] = table["b_values_mm"]
     rows: List[Dict] = table["rows"]
-    a_values: List[int] = [r["a_mm"] for r in rows]
+    a_values: List[int] = sorted(r["a_mm"] for r in rows)
 
-    # Snap a DOWN (floor) — gives more conservative (higher c) result
-    a_snapped = _snap_floor(a_mm, a_values)
-    if a_snapped is None:
-        a_snapped = 0
-        flags.append(f"a_mm ({a_mm}) below minimum tabulated value — using a=0 row.")
-
-    # Snap b DOWN (floor) — gives more conservative (higher c) result
+    # Snap b DOWN (floor). A lower structure always requires an equal or greater
+    # distance c, so flooring b is conservative.
     b_snapped = _snap_floor(b_mm, b_values)
     if b_snapped is None:
         return {
             "c_mm": None,
-            "a_mm_used": a_snapped,
+            "a_mm_used": a_mm,
             "b_mm_used": b_mm,
             "risk_level": risk_level,
             "flags": [f"Protective structure height {b_mm} mm is below the minimum tabulated value ({min(b_values)} mm). Structure is insufficient — additional safety measures required."],
             "error": "b_below_minimum",
         }
+    b_idx = b_values.index(b_snapped)
+
+    def _c_for_a(a_val: int) -> int:
+        row = next(r for r in rows if r["a_mm"] == a_val)
+        return row["c_mm"][b_idx]
+
+    # Snap a using the standard's rule: when a value lies between two tabulated
+    # rows, use whichever adjacent row gives the GREATER safety distance
+    # (AS/NZS 4024.1801 / ISO 13857 — no interpolation; select the value
+    # resulting in the higher risk). c is not monotonic in a, so flooring
+    # alone is NOT conservative.
+    if a_mm in a_values:
+        a_snapped = next(v for v in a_values if v == a_mm)
+        c_mm = _c_for_a(a_snapped)
+    else:
+        a_floor = _snap_floor(a_mm, a_values)
+        a_ceil_candidates = [v for v in a_values if v >= a_mm]
+        a_ceil = min(a_ceil_candidates) if a_ceil_candidates else None
+
+        candidates: List[int] = []
+        if a_floor is not None:
+            candidates.append(a_floor)
+        if a_ceil is not None:
+            candidates.append(a_ceil)
+        if not candidates:
+            candidates = [a_values[0]]
+            flags.append(f"a_mm ({a_mm}) outside tabulated range — using a={a_values[0]} row.")
+
+        # Choose the adjacent row that yields the larger (more conservative) c.
+        a_snapped = max(candidates, key=_c_for_a)
+        c_mm = _c_for_a(a_snapped)
+        flags.append(
+            f"a_mm ({a_mm}) not tabulated — adjacent rows evaluated, "
+            f"using a={a_snapped} mm which gives the greater safety distance "
+            f"(AS/NZS 4024.1801 rule: no interpolation, select the higher-risk value)."
+        )
 
     if risk_level == "high" and b_mm < 1400:
         flags.append("Protective structures < 1400 mm should not be used without additional safety measures (Table 2 note).")
 
-    if a_mm != a_snapped:
-        flags.append(f"a_mm ({a_mm}) not tabulated — snapped to {a_snapped} mm (Annex A, no interpolation rule).")
     if b_mm != b_snapped:
-        flags.append(f"b_mm ({b_mm}) not tabulated — snapped to {b_snapped} mm (Annex A, no interpolation rule).")
-
-    # Find row and column
-    a_idx = next(i for i, r in enumerate(rows) if r["a_mm"] == a_snapped)
-    b_idx = b_values.index(b_snapped)
-    c_mm = rows[a_idx]["c_mm"][b_idx]
+        flags.append(f"b_mm ({b_mm}) not tabulated — snapped down to {b_snapped} mm (conservative: lower structure requires greater distance).")
 
     return {
         "c_mm": c_mm,

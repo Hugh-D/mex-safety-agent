@@ -434,8 +434,10 @@ def _section_hazards(hazards: List[HazardEntry], s: dict) -> list:
                     img.drawWidth = img.imageWidth * scale
                     img.drawHeight = img.imageHeight * scale
                     items += [img, _sp(3)]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).warning("Photo embed failed for %s: %s", h.photos[0].filepath, exc)
+                    items += [Paragraph(f"[Photo could not be embedded: {h.photos[0].filepath}]", s["td"]), _sp(3)]
 
         td = s["td"]
         tc = s["tdc"]
@@ -851,8 +853,10 @@ def build_risk_assessment_docx(request: ReportDraftRequest) -> bytes:
                 try:
                     doc.add_picture(BytesIO(img_bytes), width=Inches(5))
                     doc.add_paragraph()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).warning("Photo embed failed for %s: %s", h.photos[0].filepath, exc)
+                    doc.add_paragraph(f"[Photo could not be embedded: {h.photos[0].filepath}]")
 
         # 7-column table matching the MEX report layout
         detail = doc.add_table(rows=4, cols=7)

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
+import logging
 import os
 from typing import Any
 
@@ -372,8 +374,8 @@ def _extract_docx_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
                 media_type = _DOCX_IMAGE_MIME.get(ext)
                 if media_type:
                     results.append((z.read(name), media_type))
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.getLogger(__name__).warning("DOCX image extraction failed — design review will run on text only: %s", exc)
     return results
 
 

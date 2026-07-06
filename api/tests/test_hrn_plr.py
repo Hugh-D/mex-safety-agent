@@ -60,10 +60,11 @@ class TestRiskBandLookup:
     def test_midpoint_acceptable(self):
         assert risk_band_for_score(0.5)["label"] == "Acceptable"
 
-    def test_boundary_1_exact_returns_acceptable(self):
-        # 1 matches Acceptable (max=1) before Very Low (min=1) — first match wins
+    def test_boundary_1_exact_returns_very_low(self):
+        # Exclusive upper bound: a boundary score belongs to the HIGHER
+        # (more severe) band — conservative by design.
         b = risk_band_for_score(1.0)
-        assert b["label"] == "Acceptable"
+        assert b["label"] == "Very Low"
         assert b["acceptable"] is True
 
     def test_just_above_1_returns_very_low(self):
@@ -85,8 +86,9 @@ class TestRiskBandLookup:
         assert risk_band_for_score(5.0)["label"] == "Needs Review"
 
     def test_needs_review_upper_boundary(self):
+        # Boundary goes to the more severe band (conservative).
         b = risk_band_for_score(6.0)
-        assert b["label"] == "Needs Review"
+        assert b["label"] == "Low"
         assert b["acceptable"] is False
 
     def test_just_above_needs_review_is_low(self):
@@ -101,32 +103,32 @@ class TestRiskBandLookup:
 
     # --- Further boundary pairs ---
     def test_boundary_10_exact(self):
-        assert risk_band_for_score(10.0)["label"] == "Low"
+        assert risk_band_for_score(10.0)["label"] == "Significant"
 
     def test_just_above_10(self):
         assert risk_band_for_score(10.001)["label"] == "Significant"
 
     def test_boundary_50_exact(self):
-        assert risk_band_for_score(50.0)["label"] == "Significant"
+        assert risk_band_for_score(50.0)["label"] == "High"
 
     def test_just_above_50(self):
         assert risk_band_for_score(50.001)["label"] == "High"
 
     def test_boundary_100_exact(self):
-        assert risk_band_for_score(100.0)["label"] == "High"
+        assert risk_band_for_score(100.0)["label"] == "Very High"
 
     def test_just_above_100(self):
         assert risk_band_for_score(100.001)["label"] == "Very High"
 
     def test_boundary_500_exact(self):
-        assert risk_band_for_score(500.0)["label"] == "Very High"
+        assert risk_band_for_score(500.0)["label"] == "Extreme"
 
     def test_just_above_500(self):
         assert risk_band_for_score(500.001)["label"] == "Extreme"
 
     def test_boundary_1000_exact(self):
         # 1000 matches Extreme (max=1000) before Unacceptable (min=1000) — Extreme wins
-        assert risk_band_for_score(1000.0)["label"] == "Extreme"
+        assert risk_band_for_score(1000.0)["label"] == "Unacceptable"
 
     def test_just_above_1000(self):
         assert risk_band_for_score(1001.0)["label"] == "Unacceptable"

@@ -35,7 +35,10 @@ def get_lookup_tables() -> dict:
 
 @router.post("/assessment/hrn", response_model=HRNScoreResponse)
 def score_hrn(parameters: HRNParameters) -> dict:
-    score = calculate_hrn(parameters.LO, parameters.FE, parameters.DPH, parameters.NP)
+    try:
+        score = calculate_hrn(parameters.LO, parameters.FE, parameters.DPH, parameters.NP)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     band = risk_band_for_score(score)
     return HRNScoreResponse(hrn_score=score, risk_band=band, acceptable=band.get("acceptable", False)).model_dump(by_alias=True)
 

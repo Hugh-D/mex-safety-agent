@@ -194,9 +194,59 @@
       "ai_validation_flags": [],
       "ai_recommendations": [],
       "ai_logs": []
+    },
+    {
+      "id": "H06",
+      "location": "Steps to first level",
+      "mode": "Maintenance",
+      "task": "Accessing elevated platform on dust-laden processing vessel via fixed stairway of machine",
+      "hazard_types": [
+        "Slipping",
+        "Tripping",
+        "Falling",
+        "Dust/fume inhalation",
+        "Entanglement",
+        "Drawing-in",
+        "Contact with hazardous substances",
+        "Crushing",
+        "Impact",
+        "Noise",
+        "Vibration"
+      ],
+      "photos": [
+        {
+          "filepath": "J# 27010/H06/9e13d90b_IMG_20260420_100454.jpg",
+          "timestamp": "2026-05-27T22:30:45.082000Z",
+          "site_label": "Steps to first level",
+          "annotations": []
+        }
+      ],
+      "voice_notes": [],
+      "hrn_before": {
+        "LO": 5.0,
+        "FE": 5.0,
+        "DPH": 15.0,
+        "NP": 2.0
+      },
+      "hrn_score_before": 750.0,
+      "risk_band_before": "Extreme",
+      "risk_reduction_measures": [],
+      "standards_references": [],
+      "ai_validation_flags": [
+        "LO = 0.033 is not supportable: no visible guarding over rotating drive components beneath the stairway; no administrative controls documented or verified; ISO 12100:2011 Clause 6.2.4 and AS/NZS 4024.1303 Clause 8.6 require formal, audited organisational measures before LO reduction of this magnitude is accepted.",
+        "Exposed rotating drive components (entanglement/drawing-in hazard) are visible beneath and adjacent to the access stairway with no guarding present — this is a primary hazard requiring fixed guarding per AS/NZS 4024.1601:2014 Clause 4 before any parameter optimisation is considered.",
+        "Heavy dust accumulation on all surfaces including treads and handrails constitutes a slip hazard (AS/NZS 4024.1303 Clause 5.3.1) that increases effective DPH severity and exposure frequency; dust inhalation risk requires assessment under AS/NZS 4024.1302 Clause 4 and 6.",
+        "Single-sided handrail on a steep stairway with dust-contaminated treads does not meet AS/NZS 4024.1604:2019 requirements for safe access; this is a separate fall hazard that should be assessed as an independent HRN line item.",
+        "With corrected parameters LO = 1.0, FE = 5.0, DPH = 15.0, NP = 1.0, HRN = 75.0 (High risk band >50–100), requiring immediate corrective action rather than the originally calculated 1.24 (Acceptable).",
+        "No risk reduction measures have been nominated; AS/NZS 4024.1303 Clause 8 hierarchy requires inherently safe design measures (guarding of rotating components per AS/NZS 4024.1601) to be considered before administrative controls or PPE.",
+        "LO: entered 0.033 → recommended 1. LO = 0.033 represents 'almost impossible' occurrence and is only defensible where formal, verified administrative controls (e.g. documented permit-to-work, lock-out/tag-out, enforced exclusion zones) are in place and audited per ISO 12100:2011 Clause 6.2.4 and AS/NZS 4024.1303. The scene shows no guarding over rotating drive components beneath and adjacent to the stairway, no visible exclusion barriers, and no evidence of any formal administrative control programme. Per MEX Engineering Group rules, LO must not be reduced to 0.033 unless administrative controls are formally documented and verified. With unguarded rotating machinery directly accessible from a working access stairway used during operation, LO = 1.0 (likely — could happen) is the minimum defensible value. For the entanglement/drawing-in hazard from the exposed drive components with no guard present, LO ≥ 1.5 should be considered.",
+        "FE: entered 2.5 → recommended 5. FE = 2.5 corresponds to 'monthly' exposure frequency. The scene depicts a fixed-access stairway on a continuously operating processing vessel (ball mill or rotary drum), which by its nature requires routine operational checks, lubrication, inspection, and process monitoring. In mineral or cement processing environments, access to such structures typically occurs multiple times per shift for process monitoring, housekeeping of dust accumulation (which is visually extreme in this image), and equipment checks. Per ISO 12100:2011 Clause 5.5.2.3.1 and AS/NZS 4024.1303 Clause 5.4.3.1, frequency must reflect actual operational exposure patterns. Daily or more frequent access warrants FE ≥ 2.5, but the combination of continuous-operation machinery, heavy dust requiring housekeeping intervention, and a primary access stairway strongly supports FE = 5.0 (daily) as a minimum. If access occurs multiple times per shift, FE = 5.0 remains appropriate; shift-frequency access would require FE = 5.0 to 8.0."
+      ],
+      "ai_recommendations": [],
+      "ai_logs": []
     }
   ],
   "created_at": "2026-05-20T04:36:41.183000Z",
-  "updated_at": "2026-05-26T06:28:13.673245",
+  "updated_at": "2026-05-27T22:32:18.301244",
   "status": "draft"
 }

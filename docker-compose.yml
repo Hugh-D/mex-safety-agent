@@ -1,10 +1,17 @@
 services:
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     restart: unless-stopped
     env_file: ./api/.env
+    # Only MUTABLE data is volume-mounted. Reference tables (hrn_tables.json,
+    # safety_distances.json, etc.) ship inside the image so every release
+    # deploys its own verified lookup data — a volume over /app/data would
+    # shadow updates with stale copies.
     volumes:
-      - api_data:/app/data
+      - api_projects:/app/data/projects
+      - api_audit:/app/data/audit
     expose:
       - "8000"
 
@@ -40,4 +47,5 @@ services:
              while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h; done"
 
 volumes:
-  api_data:
+  api_projects:
+  api_audit:

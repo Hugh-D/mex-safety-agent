@@ -13,6 +13,7 @@ import anthropic
 
 from models.schemas import AIInteractionLog, HazardEntry, HRNParameters, ProjectBrief, SafetyFunctionSpec
 from services.standards import field_agent_standards_line
+from services.hrn_plr import ALLOWED_VALUES as _HRN_ALLOWED
 
 MODEL = "claude-sonnet-4-6"
 
@@ -73,9 +74,12 @@ Your rules:
 - Challenge HRN parameter selections when the evidence does not support them. \
   For example: no visible guard → LO must be ≥ 8; daily exposure → FE must be ≥ 2.5.
 - Never reduce LO to 0.033 unless administrative controls are formally documented and verified.
-- HRN risk bands: ≤1 Acceptable, >1–<4 Very Low (both auto-acceptable), 4–6 Needs Review \
-  (engineer judgment required — not automatically acceptable), >6–10 Low (action required), \
-  >10–50 Significant, >50–100 High, >100–500 Very High, >500–1000 Extreme, >1000 Unacceptable.
+- HRN risk bands (lower bound inclusive, upper bound exclusive): <1 Acceptable, 1–<4 Very Low \
+  (both acceptable), 4–<6 Needs Review (engineer judgment required — not automatically acceptable), \
+  6–<10 Low (action required), 10–<50 Significant, 50–<100 High, 100–<500 Very High, \
+  500–<1000 Extreme, ≥1000 Unacceptable.
+- Acceptance threshold: an HRN score is acceptable ONLY when strictly below 4. Never describe \
+  a score of 4 or above as acceptable.
 - Respond only with valid JSON that matches the requested schema exactly. No prose outside JSON.
 """
 
@@ -91,7 +95,7 @@ the principles of the AS/NZS 4024 series and relevant WHS requirements."
 - Group findings by system type (guarding, control systems, energy isolation) — not hazard by hazard.
 - Name specific HRN bands (e.g. "assessed as Significant and Very High using the HRN methodology").
 - State that risk reduction measures were proposed in line with the hierarchy of controls.
-- Where post-mitigation HRN ≤ 5, state residual risks were "reduced to very low or acceptable levels".
+- Where post-mitigation HRN is below 4, state residual risks were "reduced to very low or acceptable levels". Never describe an HRN of 4 or above as acceptable.
 - For control system findings: reference specific deficiencies (e.g. non-compliant wiring, \
 non-PL-rated functions) and the PLr/Category required to remediate.
 - Close with: "Based on the findings of this assessment, a separate proposal will be developed \
@@ -105,19 +109,47 @@ and WHS requirements."
 
 
 def _parse_json(text: str) -> Any:
-    """Strip markdown code fences then parse JSON."""
+    """Strip markdown code fences then parse JSON. If prose surrounds the JSON,
+    fall back to the outermost {...} block. Raises ValueError with a clear
+    message if no valid JSON is found — never returns a guess."""
     text = text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[-1]
         text = text.rsplit("```", 1)[0]
-    return json.loads(text.strip())
+    text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end > start:
+            try:
+                return json.loads(text[start : end + 1])
+            except json.JSONDecodeError:
+                pass
+        raise ValueError("AI response was not valid JSON — result rejected, not guessed.")
+
+
+_AUDIT_DIR = Path(__file__).resolve().parent.parent / "data" / "audit"
+_AUDIT_FILE = _AUDIT_DIR / "ai_audit.jsonl"
+
+
+def _persist_log(entry: AIInteractionLog) -> None:
+    """Append the audit record to a JSONL file. Every AI interaction in a
+    compliance product must leave a persistent trace — console logging alone
+    is not an audit trail."""
+    try:
+        _AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+        with open(_AUDIT_FILE, "a", encoding="utf-8") as fh:
+            fh.write(entry.model_dump_json() + "\n")
+    except OSError as exc:
+        logging.error("AI audit log write FAILED — investigate immediately: %s", exc)
 
 
 def _make_log(function: str, prompt_text: str, response: Any) -> AIInteractionLog:
-    """Build an audit log entry from a Claude API response."""
+    """Build and persist an audit log entry from a Claude API response."""
     prompt_hash = hashlib.sha256(prompt_text.encode()).hexdigest()[:16]
     usage = response.usage
-    return AIInteractionLog(
+    entry = AIInteractionLog(
         function=function,
         model=response.model,
         response_id=response.id,
@@ -126,6 +158,8 @@ def _make_log(function: str, prompt_text: str, response: Any) -> AIInteractionLo
         input_tokens=usage.input_tokens,
         output_tokens=usage.output_tokens,
     )
+    _persist_log(entry)
+    return entry
 
 
 def _client() -> anthropic.Anthropic:
@@ -216,7 +250,35 @@ NP: 1=1-2 persons, 2=3-7 persons, 4=8-15 persons, 8=16-50 persons, 12=50+ person
     )
 
     log = _make_log("analyse_photo", prompt, response)
-    return _parse_json(response.content[0].text), log
+    result = _parse_json(response.content[0].text)
+    _sanitise_hrn_suggestions(result)
+    return result, log
+
+
+def _sanitise_hrn_suggestions(result: dict) -> None:
+    """AI-suggested HRN values must come from the published tables. Any invalid
+    value is snapped UP to the next allowed value (conservative — never
+    understate risk) and flagged so the engineer sees the correction."""
+    suggestions = result.get("hrn_suggestions")
+    if not isinstance(suggestions, dict):
+        return
+    flags = result.setdefault("flags", [])
+    for name, allowed in _HRN_ALLOWED.items():
+        entry = suggestions.get(name)
+        if not isinstance(entry, dict) or "value" not in entry:
+            continue
+        try:
+            value = float(entry["value"])
+        except (TypeError, ValueError):
+            entry["value"] = max(allowed)
+            flags.append(f"AI suggested a non-numeric {name} — replaced with the maximum table value {max(allowed)} (conservative). Engineer must review.")
+            continue
+        if any(abs(value - a) < 1e-9 for a in allowed):
+            continue
+        higher = [a for a in allowed if a > value]
+        snapped = min(higher) if higher else max(allowed)
+        entry["value"] = snapped
+        flags.append(f"AI suggested {name}={value}, which is not a valid table value — snapped UP to {snapped} (conservative). Engineer must review.")
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +371,7 @@ Existing measures: {", ".join(existing_measures) if existing_measures else "none
 
 Recommend up to 6 risk reduction measures following ISO 12100 hierarchy \
 (eliminate > guard > safeguard > warning > training/PPE). Group related hazard types under one measure where possible.
-Target: bring HRN to ≤ 5.
+Target: bring HRN below 4 (Very Low or Acceptable band).
 
 Return JSON:
 {{
@@ -421,7 +483,7 @@ def synthesise_conclusion(
             for sf in safety_functions
         )
 
-    unacceptable = [h for h in hazards if not h.hrn_score_after or h.hrn_score_after >= 4]
+    unacceptable = [h for h in hazards if h.hrn_score_after is None or h.hrn_score_after >= 4]
 
     prompt = f"""\
 Project: {project_brief.project_number} — {project_brief.client}
@@ -434,7 +496,7 @@ Hazard findings:
 {hazard_summary}
 {sf_summary}
 
-Hazards still above HRN 5 after mitigation: {len(unacceptable)}
+Hazards not yet acceptable (HRN missing or >= 4) after mitigation: {len(unacceptable)}
 
 Write the Conclusion section for this risk assessment report.
 

@@ -2,6 +2,7 @@
   "expo": {
     "name": "MEX Safety Mobile",
     "slug": "mex-safety-mobile",
+    "updates": { "enabled": false },
     "version": "0.1.0",
     "sdkVersion": "54.0.0",
     "platforms": [

@@ -16,9 +16,20 @@ from services.rate_limit import limiter
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-# In-memory job store for async photo analysis
+# In-memory job stores for async analysis. Jobs are pruned after _JOB_TTL_SECONDS
+# so the stores cannot grow without bound. NOTE: these stores are per-process —
+# the API must run as a single worker (current Dockerfile does) or polling breaks.
+import time as _time
+
+_JOB_TTL_SECONDS = 3600
 _photo_jobs: dict[str, dict] = {}
 _executor = ThreadPoolExecutor(max_workers=4)
+
+
+def _prune_jobs(store: dict[str, dict]) -> None:
+    cutoff = _time.time() - _JOB_TTL_SECONDS
+    for jid in [j for j, v in store.items() if v.get("created", 0) < cutoff]:
+        store.pop(jid, None)
 
 
 # ---------------------------------------------------------------------------
@@ -91,10 +102,10 @@ class ConclusionResponse(BaseModel):
 def _run_photo_job(job_id: str, image_bytes: bytes, site_label: str, equipment_ref: Optional[str]) -> None:
     try:
         result, ai_log = claude_service.analyse_photo(image_bytes, site_label, equipment_ref)
-        _photo_jobs[job_id] = {"status": "complete", "result": result}
+        _photo_jobs[job_id] = {"status": "complete", "result": result, "created": _time.time()}
     except Exception as exc:
         log.error("analyse_photo failed: %s", exc)
-        _photo_jobs[job_id] = {"status": "error", "detail": str(exc)}
+        _photo_jobs[job_id] = {"status": "error", "detail": str(exc), "created": _time.time()}
 
 
 @router.post("/ai/photo/start")
@@ -107,8 +118,9 @@ async def analyse_photo_start(
 ) -> dict:
     """Accept a photo and start analysis in the background. Returns a job_id to poll."""
     image_bytes = await file.read()
+    _prune_jobs(_photo_jobs)
     job_id = str(uuid.uuid4())
-    _photo_jobs[job_id] = {"status": "pending"}
+    _photo_jobs[job_id] = {"status": "pending", "created": _time.time()}
     loop = asyncio.get_event_loop()
     loop.run_in_executor(_executor, _run_photo_job, job_id, image_bytes, site_label, equipment_ref)
     return {"job_id": job_id, "status": "pending"}
@@ -132,10 +144,10 @@ _voice_jobs: dict[str, dict] = {}
 def _run_voice_job(job_id: str, audio_bytes: bytes, filename: str, site_label: str) -> None:
     try:
         result, ai_log = voice_service.transcribe_voice(audio_bytes, filename, site_label)
-        _voice_jobs[job_id] = {"status": "complete", "result": result}
+        _voice_jobs[job_id] = {"status": "complete", "result": result, "created": _time.time()}
     except Exception as exc:
         log.error("transcribe_voice failed: %s", exc)
-        _voice_jobs[job_id] = {"status": "error", "detail": str(exc)}
+        _voice_jobs[job_id] = {"status": "error", "detail": str(exc), "created": _time.time()}
 
 
 @router.post("/ai/voice/start")
@@ -148,8 +160,9 @@ async def transcribe_voice_start(
     """Accept audio and start transcription in the background. Returns a job_id to poll."""
     audio_bytes = await file.read()
     filename = file.filename or "voice.m4a"
+    _prune_jobs(_voice_jobs)
     job_id = str(uuid.uuid4())
-    _voice_jobs[job_id] = {"status": "pending"}
+    _voice_jobs[job_id] = {"status": "pending", "created": _time.time()}
     loop = asyncio.get_event_loop()
     loop.run_in_executor(_executor, _run_voice_job, job_id, audio_bytes, filename, site_label)
     return {"job_id": job_id, "status": "pending"}
