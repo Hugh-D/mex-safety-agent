@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react"
-import { determinePLR, scoreHRN, listProjects, createProject, getProject, generateProjectReport } from "./services/api"
+import { determinePLR, scoreHRN, listProjects, createProject, getProject, generateProjectReport, deleteProject } from "./services/api"
 import type { HRNParameters, PLRRequest, HRNScoreResponse, PLRResultResponse, AssessmentProject, ProjectListResponse } from "@shared/types/assessment"
 import DesignReview from "./components/DesignReview"
 import DocumentReview from "./components/DocumentReview"
@@ -266,6 +266,17 @@ function App() {
     }
   }
 
+  const handleDeleteProject = async (projectNumber: string) => {
+    if (!window.confirm(`Delete project "${projectNumber}"? This cannot be undone.`)) return
+    try {
+      await deleteProject(projectNumber)
+      if (selectedProject?.projectBrief.projectNumber === projectNumber) setSelectedProject(null)
+      loadProjects()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
   const parameterRows = useMemo(
     () => [
       { key: "LO" as const, label: "Likelihood of Occurrence (LO)", options: HRN_PARAMS.LO, value: parameters.LO },
@@ -505,7 +516,10 @@ function App() {
                     <button className="project-number-btn" onClick={() => openProject(projectNumber)}>
                       {projectNumber}
                     </button>
-                    <button onClick={() => downloadReport(projectNumber)}>Download Report</button>
+                    <div className="project-item-actions">
+                      <button onClick={() => downloadReport(projectNumber)}>Download Report</button>
+                      <button className="btn-danger" onClick={() => handleDeleteProject(projectNumber)}>Delete</button>
+                    </div>
                   </div>
                 ))}
               </div>

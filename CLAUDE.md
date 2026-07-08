@@ -200,3 +200,4 @@ Read on demand — do not preload everything.
 - **System prompt updates are reactive only.** Do not speculatively update `claude_service.py` system prompts — only update when new standards docs or confirmed requirements land.
 - **Standards docs go in `docs/` and are loaded selectively per endpoint** — not globally into every prompt. See the AI Standards Loading table above.
 - **Vite dev server must be started from `apps/web/`**, not the project root. Running `vite` from the root serves 404 on all routes — `index.html` is not found. Always: `cd apps/web && npm run dev`.
+- **Rebuild `dist/` after every frontend change.** The FastAPI server serves `apps/web/dist/` as static files — this is what users see in the browser. The Vite dev server (`localhost:5173`) and the production build are independent; changes only appear in the real app after running `cd apps/web && npm run build`.

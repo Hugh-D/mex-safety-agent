@@ -50,6 +50,15 @@ def load_project(project_number: str) -> Optional[AssessmentProject]:
     return AssessmentProject.model_validate(data)
 
 
+def delete_project(project_number: str) -> bool:
+    path = _project_file(project_number)
+    with _get_lock(project_number):
+        if not path.exists():
+            return False
+        path.unlink()
+    return True
+
+
 def list_projects() -> List[str]:
     results = []
     for path in PROJECTS_DIR.glob("*.json"):

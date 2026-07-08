@@ -33,7 +33,8 @@ async function throwWithDetail(response: Response, prefix: string): Promise<neve
   let detail = response.statusText
   try {
     const body = await response.json()
-    detail = body.detail ?? body.message ?? JSON.stringify(body)
+    const raw = body.detail ?? body.message ?? body
+    detail = typeof raw === "string" ? raw : JSON.stringify(raw)
   } catch { /* ignore */ }
   throw new Error(`${prefix}: ${detail}`)
 }
@@ -236,6 +237,14 @@ export async function getProject(projectNumber: string): Promise<AssessmentProje
 
 export async function listProjects(): Promise<ProjectListResponse> {
   return getJSON<ProjectListResponse>("/assessment/projects")
+}
+
+export async function deleteProject(projectNumber: string): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/assessment/project/${encodeURIComponent(projectNumber)}`,
+    { method: "DELETE", headers: authHeader() },
+  )
+  if (!response.ok) await throwWithDetail(response, "Delete failed")
 }
 
 export async function generateProjectReport(projectNumber: string, format: "pdf" | "docx" = "pdf"): Promise<Blob> {

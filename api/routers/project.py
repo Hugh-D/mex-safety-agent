@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 from models.schemas import AssessmentProject, ProjectListResponse
-from services.project_store import save_project, load_project, list_projects
+from services.project_store import save_project, load_project, list_projects, delete_project
 from services.hrn_plr import verify_hazards
 from services import storage
 
@@ -32,6 +32,12 @@ def get_project(project_number: str) -> dict:
 @router.get("/assessment/projects", response_model=ProjectListResponse)
 def get_project_list() -> dict:
     return ProjectListResponse(project_numbers=list_projects()).model_dump(by_alias=True)
+
+
+@router.delete("/assessment/project/{project_number}", status_code=204)
+def remove_project(project_number: str) -> None:
+    if not delete_project(project_number):
+        raise HTTPException(status_code=404, detail="Project not found")
 
 
 def _safe_name(project_number: str) -> str:
