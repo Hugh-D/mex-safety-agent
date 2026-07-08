@@ -517,7 +517,7 @@ function App() {
                       {projectNumber}
                     </button>
                     <div className="project-item-actions">
-                      <button onClick={() => downloadReport(projectNumber)}>Download Report</button>
+                      <button onClick={() => downloadReport(projectNumber)}>Download</button>
                       <button className="btn-danger" onClick={() => handleDeleteProject(projectNumber)}>Delete</button>
                     </div>
                   </div>
