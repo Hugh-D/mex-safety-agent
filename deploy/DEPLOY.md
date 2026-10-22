@@ -135,6 +135,25 @@ docker compose restart api
 df -h
 ```
 
+> The droplet has the older Compose installed — use `docker-compose` (hyphen) if `docker compose` says "unknown command".
+
+---
+
+## SSL renewal
+
+Renewal is automatic: the `certbot` container runs `certbot renew` every 12h (renews 30 days before expiry), and the `nginx` container reloads itself weekly to pick up the new certificate.
+
+If the site ever shows an expired certificate:
+```bash
+cd /opt/mex
+# Expiry of the cert on disk
+openssl x509 -noout -enddate -in deploy/certbot/conf/live/cmse.mexeng.com.au/fullchain.pem
+# If that date is in the future, nginx just needs to load it:
+docker-compose exec nginx nginx -s reload
+# If it has expired, renew first, then reload:
+docker-compose run --rm --entrypoint certbot certbot renew --webroot -w /var/www/certbot
+```
+
 ---
 
 ## Costs summary

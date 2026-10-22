@@ -33,6 +33,10 @@ services:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/certbot/conf:/etc/letsencrypt:ro
       - ./deploy/certbot/www:/var/www/certbot:ro
+    # Reload weekly so nginx picks up certificates renewed by the certbot
+    # container — nginx keeps the old cert in memory until reloaded.
+    # Certbot renews 30 days before expiry, so weekly leaves ~3 weeks margin.
+    command: ["/bin/sh", "-c", "while :; do sleep 604800; nginx -s reload; done & exec nginx -g 'daemon off;'"]
     depends_on:
       - api
       - web
